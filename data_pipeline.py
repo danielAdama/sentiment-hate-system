@@ -30,7 +30,7 @@ if __name__ == '__main__':
         ]
 
     for hashtag in hashtags:
-        query = tw.Cursor(api.search_tweets, q=hashtag).items(200)
+        query = tw.Cursor(api.search_tweets, q=hashtag).items(100)
 
         for tweet in query:
             date = tweet.created_at
@@ -50,15 +50,10 @@ if __name__ == '__main__':
             cursor = connection.cursor()
             # cursor.execute("CREATE DATABASE twitterdb")
             # print("Database Created")
-            # cursor.execute("CREATE TABLE twitter_table (created_at VARCHAR(45), tweet TEXT, retweet_count INT(11))")
+
+            # cursor.execute("CREATE TABLE IF NOT EXISTS twitter_table (created_at VARCHAR(45), tweet TEXT, retweet_count INT(11))")
             # print("Table Created")
-            # cursor.execute("SHOW databases")
-            # cursor.execute("SHOW tables")
-            # for x in cursor:
-            #     print(x)
             
-            # cursor.execute("DROP TABLE IF EXISTS twitter_table")
-            # print("Database Dropped")
             # cursor.execute("SELECT * FROM twitter_table")
             # myresult = cursor.fetchall()
 
