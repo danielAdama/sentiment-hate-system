@@ -16,26 +16,35 @@ access_token_secret = config.ACCESSTOKENSECRET
 auth = tw.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tw.API(auth, wait_on_rate_limit=True)
+client = tw.Client(bearer_token=config.BEARERTOKEN)
 
 
 if __name__ == '__main__':
 
     # According to research, Canadian cities with the highest black population that experience 
     # racism the most are Toronto, Montreal, Edmonton, Calgary, Winnipeg, and Vancouver.
+    # lang:en is asking for the tweets to be in english
 
     hashtags = [
-        '#toronto', '#edmonton', '#calgary', '#winnipeg', '#montreal', '#vancouver', '#studiolife', 
-        '#aislife', '#requires', '#passions', '#white', '#supremacists', '#inthefeels', 
-        '#deep', '#politics', '#blm', '#brexit', '#trump', '#music'
+        '#toronto lang:en', '#edmonton lang:en', '#calgary lang:en', '#winnipeg lang:en', '#montreal lang:en', 
+        '#vancouver lang:en', '#studiolife lang:en', '#aislife lang:en', '#requires lang:en', '#passions lang:en',
+        '#white lang:en', '#supremacists lang:en', '#inthefeels lang:en', '#deep lang:en', '#politics lang:en',
+        '#blm lang:en', '#brexit lang:en', '#trump lang:en', '#music lang:en'
         ]
 
     for hashtag in hashtags:
-        query = tw.Cursor(api.search_tweets, q=hashtag).items(100)
+        tweets = client.search_recent_tweets(query=hashtag, tweet_fields=['context_annotations', 'created_at'], max_results=100)
 
-        for tweet in query:
+        for tweet in tweets.data:
             date = tweet.created_at
             text = tweet.text
-            retweet_count = tweet.retweet_count
+
+    # for hashtag in hashtags:
+    #     query = tw.Cursor(api.search_tweets, q=hashtag).items(100)
+
+    #     for tweet in query:
+    #         date = tweet.created_at
+    #         text = tweet.text
         
 
         try:
@@ -46,24 +55,12 @@ if __name__ == '__main__':
                 password=config.PASSWORD
                 )
             
-            # if connection.is_connected():
-            cursor = connection.cursor()
-            # cursor.execute("CREATE DATABASE twitterdb")
-            # print("Database Created")
+            if connection.is_connected():
 
-            # cursor.execute("CREATE TABLE IF NOT EXISTS twitter_table (created_at VARCHAR(45), tweet TEXT, retweet_count INT(11))")
-            # print("Table Created")
-            
-            # cursor.execute("SELECT * FROM twitter_table")
-            # myresult = cursor.fetchall()
-
-            # for x in myresult:
-            #     print(x)
-
-            
-            insertQuery = "INSERT INTO twitter_table (created_at, tweet, retweet_count) VALUES (%s, %s, %s)"
-            cursor.execute(insertQuery, (date, text, retweet_count))
-            connection.commit()
+                cursor = connection.cursor()
+                insertQuery = "INSERT INTO twitter_table (created_at, tweet) VALUES (%s, %s)"
+                cursor.execute(insertQuery, (date, text))
+                connection.commit()
 
         except Error as e:
             print(e)
