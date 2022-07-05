@@ -2,6 +2,7 @@ APIKEY = 'kzsJAN3FdLCARF32TGwurFMvJ'
 APIKEYSECRET = '0gODaLuvlb0p4wHVV6m1fXKQQzRWzjoFRjD9uzbp9YMK6yj7y3'
 ACCESSTOKEN = '1483881918844264448-4Y2lhnUNkTmRYtAybSXHWVyYarvNee'
 ACCESSTOKENSECRET = 'RkcWHeHPEFY48Fj7Q7daWRhM9WG7DZB9WrMxxZXLniLev'
+BEARERTOKEN = "AAAAAAAAAAAAAAAAAAAAAIW%2FdwEAAAAAwrkzP063GRlumIWzAQqc%2FdUbL6E%3DBnELIXXoVEYPCK0SesfnmifOTOv6qhWfbQHYTyYl8UbxbhdLh0"
 DATAPATH = r'/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/dataset/hate_speech'
 SCALERPATH = 'label_scaler/data_label_scaler'
 VECTORIZERPATH = 'label_vectorizer/vectorizer_label'
