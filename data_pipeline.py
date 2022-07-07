@@ -1,4 +1,5 @@
 from reprlib import aRepr
+import time
 import numpy
 import pandas
 import mysql.connector
@@ -32,41 +33,52 @@ if __name__ == '__main__':
         '#blm lang:en', '#brexit lang:en', '#trump lang:en', '#music lang:en'
         ]
 
-    for hashtag in hashtags:
-        tweets = client.search_recent_tweets(query=hashtag, tweet_fields=['context_annotations', 'created_at'], max_results=100)
+    while True:
+        time.sleep(60.0)
+        # Make created_at your primary key, so as to prevent duplicates in the data
+        for hashtag in hashtags:
+            tweets = client.search_recent_tweets(query=hashtag, tweet_fields=['context_annotations', 'created_at'],
+            max_results=100)
 
-        for tweet in tweets.data:
-            date = tweet.created_at
-            text = tweet.text
+            if tweets.data is not None:
+                for tweet in tweets.data:
+                    date = tweet.created_at
+                    text = tweet.text
+                    id = tweet.id
 
-    # for hashtag in hashtags:
-    #     query = tw.Cursor(api.search_tweets, q=hashtag).items(100)
+                try:
+                    connection = mysql.connector.connect(
+                        host=config.HOST, 
+                        database=config.DATABASE,
+                        user=config.USER,
+                        password=config.PASSWORD
+                        )
+                    
+                    if connection.is_connected():
 
-    #     for tweet in query:
-    #         date = tweet.created_at
-    #         text = tweet.text
+                        cursor = connection.cursor()
+                        # table = """
+                        # CREATE TABLE IF NOT EXISTS twitter_table(
+                        #     id VARCHAR(200) PRIMARY KEY,
+                        #     created_at VARCHAR(200),
+                        #     tweet TEXT
+                        # )
+                        # """
+                        # cursor.execute(table)
+                        insertQuery = """
+                        INSERT INTO twitter_table (id, created_at, tweet) 
+                        VALUES
+                        (%s, %s, %s)
+                        """
+                        cursor.execute(insertQuery, (id, date, text))
+                        connection.commit()
+
+                except Error as e:
+                    print(e)
+                    
+                cursor.close()
+                connection.close()
+            print(f"Tweet collected at: {date}")
+        print()
+        print("Data is successfully entered.")
         
-
-        try:
-            connection = mysql.connector.connect(
-                host=config.HOST, 
-                database=config.DATABASE,
-                user=config.USER,
-                password=config.PASSWORD
-                )
-            
-            if connection.is_connected():
-
-                cursor = connection.cursor()
-                insertQuery = "INSERT INTO twitter_table (created_at, tweet) VALUES (%s, %s)"
-                cursor.execute(insertQuery, (date, text))
-                connection.commit()
-
-        except Error as e:
-            print(e)
-            
-        cursor.close()
-        connection.close()
-        print(f"Tweet collected at: {date}")
-    print()
-    print("Data is successfully entered.")
