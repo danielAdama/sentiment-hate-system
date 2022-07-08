@@ -34,7 +34,8 @@ if __name__ == '__main__':
         ]
 
     while True:
-        time.sleep(60.0)
+        time.sleep(15.0)
+        
         # Make created_at your primary key, so as to prevent duplicates in the data
         for hashtag in hashtags:
             tweets = client.search_recent_tweets(query=hashtag, tweet_fields=['context_annotations', 'created_at'],
