@@ -7,7 +7,6 @@ import warnings
 warnings.simplefilter('ignore', UserWarning)
 
 # Script to label new data
-
 mi = ModelInference()
 def main():
     data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
@@ -25,10 +24,11 @@ def main():
         file = 'labelled_data/'
         if os.path.exists(file):
             data.to_csv('labelled_data/test_labelled_based_on_predictions.csv')
+            print('Success')
         else:
             os.mkdir('labelled_data/')
             data.to_csv('labelled_data/test_labelled_based_on_predictions.csv')
-            
+            print('Success')
 
 
 if __name__ == '__main__':
