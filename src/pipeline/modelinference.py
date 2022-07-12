@@ -33,11 +33,11 @@ class ModelInference():
     def __init__(self):
 
         self.lemmatizer = WordNetLemmatizer()
-        self.vectorizer = pickle.load(open("vectorizers/vectorizer_label", "rb"))
-        self.scaler = pickle.load(open("scalers/data_label_scaler", "rb"))
-        self.model = pickle.load(open("models/model_labeller", "rb"))
-        self.stopwords = set(json.load(open("stopWords/custome_nltk_stopwords.json", "r")))
-        self.stopwords_json = set(json.load(open("stopWords/custome_json_stopwords.json", "r")))
+        self.vectorizer = pickle.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/vectorizer_label", "rb"))
+        self.scaler = pickle.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/scalers/data_label_scaler", "rb"))
+        self.model = pickle.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/model_labeller", "rb"))
+        self.stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
+        self.stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
 
     def get_pos_tag(self, text):
