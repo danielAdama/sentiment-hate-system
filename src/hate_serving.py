@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from flask import Flask, request, jsonify
-import flask_httpauth
+from datetime import datetime
 from config import config
 from pipeline.modelinference import ModelInference
 import warnings
@@ -15,7 +15,7 @@ app = Flask(__name__)
 data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
 data = data.iloc[:50]
 
-# Read from database
+# Read predictions from database
 @app.route('/v1/users/predictions', methods=['GET'])
 def many():
     data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
@@ -30,9 +30,10 @@ def many():
         data['probability'] = prob
         data = data.rename(columns={'text':'raw_text'})
         data = data[['id', 'raw_text','predictions', 'probability']]
-    return jsonify(outputs=data.to_json(orient="records"))
+    return jsonify(outputs=data.to_json(orient="records")), 200
 
 
+# Store in database
 @app.route('/v1/batch/predictions', methods=['POST'])
 def add_pred():
     data = pd.read_json(request.get_json())
@@ -54,8 +55,9 @@ def add_pred():
         }
         content = [dict(zip(res.keys(), i)) for i in zip(*res.values())]
         # predictions=data.to_json(orient="records")
-    return jsonify({"outputs":content})
+    return jsonify({"outputs":content}), 200
 
+# Real-time prediction
 @app.route('/v1/single-entry/predict', methods=['POST'])
 def single():
     # data = pd.read_json(request.get_json())
@@ -71,18 +73,19 @@ def single():
         data = data.rename(columns={'text':'raw_text'})
         data = data[['id', 'raw_text','predictions', 'probability']]
         result = {
+            "creation_time":datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
             "id": data['id'].to_json(orient="records"),
             "tweet": data['raw_text'].to_json(orient="records"),
             "Prediction":{
-                "details":{
-                "PredictiveModelType":"Binary",
+                "Details":{
+                "PredictiveModelType":"Binary:0-non-hate, 1-hate",
                 "Algorithm":"XGBoost"
             },
             "PredictedLabel": data['predictions'].to_json(orient="records"),
             "PredictedScore": data['probability'].to_json(orient="records")
             },
         }
-    return jsonify(result)
+    return jsonify(result), 200
 
 
 if __name__ == '__main__':
