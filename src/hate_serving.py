@@ -21,7 +21,7 @@ def many():
     data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
     data = data.iloc[:50]
     data = data.rename(columns={'tweet':'text'})
-    if (data.id is not None or data.text is None):
+    if (data.text is not None):
         # Parse the data through the predicted_output_category & predicted_probability, 
         # which scales and makes predictions
         preds = mi.predicted_output_category(data)
@@ -38,7 +38,7 @@ def add_pred():
     data = pd.read_json(request.get_json())
     data = data.rename(columns={'tweet':'text'})
     print(data.shape)
-    if (data.id is not None or data.text is None):
+    if (data.text is not None):
         # Parse the data through the predicted_output_category & predicted_probability, 
         # which scales and makes predictions
         preds = mi.predicted_output_category(data)
@@ -61,7 +61,7 @@ def single():
     # data = pd.read_json(request.get_json())
     data = pd.DataFrame(request.get_json())
     data = data.rename(columns={'tweet':'text'})
-    if (data.id is not None or data.text is None):
+    if (data.text is not None):
         # Parse the data through the predicted_output_category & predicted_probability, 
         # which scales and makes predictions
         preds = mi.predicted_output_category(data)
@@ -74,13 +74,13 @@ def single():
             "id": data['id'].to_json(orient="records"),
             "tweet": data['raw_text'].to_json(orient="records"),
             "Prediction":{
-                "PredictedLabel": data['predictions'].to_json(orient="records"),
-                "PredictedScore": data['probability'].to_json(orient="records")
-            },
-            "details":{
+                "details":{
                 "PredictiveModelType":"Binary",
                 "Algorithm":"XGBoost"
-            }
+            },
+            "PredictedLabel": data['predictions'].to_json(orient="records"),
+            "PredictedScore": data['probability'].to_json(orient="records")
+            },
         }
     return jsonify(result)
 
