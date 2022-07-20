@@ -61,7 +61,6 @@ def single():
     # data = pd.read_json(request.get_json())
     data = pd.DataFrame(request.get_json())
     data = data.rename(columns={'tweet':'text'})
-    print(data.shape)
     if (data.id is not None or data.text is None):
         # Parse the data through the predicted_output_category & predicted_probability, 
         # which scales and makes predictions
@@ -71,8 +70,19 @@ def single():
         data['probability'] = prob
         data = data.rename(columns={'text':'raw_text'})
         data = data[['id', 'raw_text','predictions', 'probability']]
-        # predictions=data.to_json(orient="records")
-    return jsonify(output=data.to_json(orient="records"))
+        result = {
+            "id": data['id'].to_json(orient="records"),
+            "tweet": data['raw_text'].to_json(orient="records"),
+            "Prediction":{
+                "PredictedLabel": data['predictions'].to_json(orient="records"),
+                "PredictedScore": data['probability'].to_json(orient="records")
+            },
+            "details":{
+                "PredictiveModelType":"Binary",
+                "Algorithm":"XGBoost"
+            }
+        }
+    return jsonify(result)
 
 
 if __name__ == '__main__':
