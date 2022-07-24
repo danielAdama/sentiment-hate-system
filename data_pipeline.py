@@ -33,7 +33,7 @@ if __name__ == '__main__':
         ]
 
     while True:
-        time.sleep(15.0)
+        time.sleep(10.0)
         
         # Make created_at your primary key, so as to prevent duplicates in the data
         for hashtag in hashtags:
@@ -45,26 +45,27 @@ if __name__ == '__main__':
                     date = tweet.created_at
                     text = tweet.text
                     id = tweet.id
-
+                
                 try:
+
                     connection = mysql.connector.connect(
                         host=config.HOST, 
                         database=config.DATABASE,
                         user=config.USER,
                         password=config.PASSWORD
                         )
-                    
+                        
                     if connection.is_connected():
-
                         cursor = connection.cursor()
-                        # table = """
-                        # CREATE TABLE IF NOT EXISTS twitter_table(
-                        #     id VARCHAR(200) PRIMARY KEY,
-                        #     created_at VARCHAR(200),
-                        #     tweet TEXT
-                        # )
-                        # """
-                        # cursor.execute(table)
+                        # cursor.execute('DROP TABLE IF EXISTS twitter_table')
+                        table = """
+                        CREATE TABLE IF NOT EXISTS twitter_table(
+                            id VARCHAR(200) NOT NULL PRIMARY KEY,
+                            created_at VARCHAR(200),
+                            tweet TEXT
+                        )
+                        """
+                        cursor.execute(table)
                         insertQuery = """
                         INSERT INTO twitter_table (id, created_at, tweet) 
                         VALUES
@@ -81,4 +82,4 @@ if __name__ == '__main__':
             print(f"Tweet collected at: {date}")
         print()
         print("Data is successfully entered.")
-        
+    
