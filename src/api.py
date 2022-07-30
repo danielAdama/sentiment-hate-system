@@ -12,8 +12,8 @@ mi = ModelInference()
 os.environ['FLASK_ENV']="development"
 app = Flask(__name__)
 
-data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
-data = data.iloc[:50]
+# data = pd.read_csv(os.path.join(config.DATAPATH, 'test.csv'))
+# data = data.iloc[:50]
 
 # Read predictions from database
 # @app.route('/v1/users/predictions', methods=['GET'])
