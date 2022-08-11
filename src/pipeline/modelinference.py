@@ -3,7 +3,7 @@ import numpy as np
 import os
 import json
 import contractions
-import pickle
+import joblib
 from nltk import word_tokenize, sent_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
@@ -11,6 +11,7 @@ from string import punctuation
 import re
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter('ignore', UserWarning)
 
 
 class ModelInference():
@@ -21,8 +22,7 @@ class ModelInference():
         lemmatizer (WordNet) : Lemmatize using WordNet's built-in morphy function.
         vectorizer (TFIDF matrix) : Vectorizer transforms a collection of raw documents to the 
         TF-IDF features matrix during training.
-        scaler (float) : The scaled matrix of features during training.
-        model (float) : Model to perform inference on new data.
+        model (float) : Model pipeline to scale the matrix of features and perform inference on new data.
         stopwords_json (set) : Loads the custome Stopwords with exception of "no", "not" & "but". We 
         remove stopwords before feeding it to the model for inference.
         stopwords (set) : Loads the custome Stopwords from NLTK with exception of "no", "not" & "but".
@@ -30,12 +30,12 @@ class ModelInference():
         stopwords_punctuation (set) : A variable with the compined stopwords and punctions.
     """
     
-    def __init__(self, vectorizer='vectorizer.bin', scaler='scaler.bin', model='model.bin'):
+    def __init__(self, vectorizer='vectorizer.bin', model='model.bin'):
 
         self.lemmatizer = WordNetLemmatizer()
-        self.vectorizer = pickle.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/{vectorizer}", "rb"))
-        self.scaler = pickle.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/scalers/{scaler}", "rb"))
-        self.model = pickle.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/{model}", "rb"))
+        self.vectorizer = joblib.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/{vectorizer}", "rb"))
+        # self.scaler = pickle.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/scalers/{scaler}", "rb"))
+        self.model = joblib.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/{model}", "rb"))
         self.stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
         self.stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
