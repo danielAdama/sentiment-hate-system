@@ -27,7 +27,7 @@ jobs:
           key: v1-dependencies-{{ checksum "requirements.txt" }}
         
       - run:
-          name: Run Modelinference.py test
+          name: Run Test
           command: |
             source sentiment_env/bin/activate
             pytest
