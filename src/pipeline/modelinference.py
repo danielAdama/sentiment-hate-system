@@ -39,13 +39,21 @@ class ModelInference():
         self.stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
         self.stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
+    
+    # def get_mention(self, data):
 
+    #     """Function to extract number of mentions(@danieltovia) in a tweet
+    #     """
+    #     data['mention_count'] = data.text.apply(lambda x: len(re.findall(r"@[\w\-]+", x)))
+    #     return data
+    
     def get_pos_tag(self, text):
         
         """Function to group words according to their Parts of Speech
         
         Args: 
             text (object) : Represents tweets
+
         Returns:
             tags (tuples) : Classified words and parts of speech
         """
@@ -66,6 +74,7 @@ class ModelInference():
 
         Args:
             text (object) : Represents tweets
+
         Returns:
             text (string) : Pre-processed text
 
@@ -94,8 +103,7 @@ class ModelInference():
             if lemmatized_word not in self.stopwords_punctuation:
                 sentence.append(lemmatized_word)
         text = ' '.join(sentence)
-        text = text.replace("n't", 'not').replace('ii', '').replace('iii', '')
-        text = text.replace("'s", "").replace("''", "").replace("nt", "not")
+        text = text.replace("n't", 'not').replace("nt", "not")
         
         return text
 
@@ -106,6 +114,7 @@ class ModelInference():
         Args:
             text (object) : Represents tweets
             flags (string) : Representing Part of Speech (noun, verb, adj, pronoun)
+
         Returns:
             count (int) : Frequency of part of speech
             
@@ -138,15 +147,19 @@ class ModelInference():
 
         Args:
             data (DataFrame) : Input DataFrame that contains tweet
+
         Returns:
             data (DataFrame) : DataFrame with new features
         
         """
-        
+
+        data['mention_count'] = data.text.apply(lambda x: len(re.findall(r"@[\w\-]+", x)))
+        data['text'] = data.text.replace(regex=re.compile(r"@([A-Za-z0-9_]+)"), value='')
+        data['text'] = data.text.replace(regex=re.compile(r"RT([\s:]+)"), value='')
         data['char_count'] = data.text.apply(len)
         data['word_count'] = data.text.apply(lambda x: len(x.split()))
         data['uniq_word_count'] = data.text.apply(lambda x: len(set(x.split())))
-        data['htag_count'] = data.text.apply(lambda x: len(re.findall(r'(#w[A-Za-z0-9]*)', x)))
+        data['htag_count'] = data.text.apply(lambda x: len(re.findall(r'#[\w\-]+', x)))
         data['stopword_count'] = data.text.apply(lambda x: len([wrd for wrd in word_tokenize(x) if wrd in self.stopwords]))
         data['sent_count'] = data.text.apply(lambda x: len(sent_tokenize(x)))
         data['avg_word_len'] = data['char_count']/(data['word_count']+1)
@@ -162,48 +175,60 @@ class ModelInference():
         data['adv_count'] = data.text.apply(lambda x: self.count_pos_tag(x, 'adv'))
         data['pron_count'] = data.text.apply(lambda x: self.count_pos_tag(x, 'pron'))
         data['cleaned_text'] = data.text.apply(self.preprocess_text)
+        data = data.drop(['id', 'text'], axis=1)
 
         return data
 
-    # def raw_tweet(self, data):
-    #     data['raw_text'] = data['text']
-    #     return data['raw_text']
-
-    def vector_process(self, data):
+    def transform(self, data, column):
 
         """Function to convert preprocessed text to vector.
         
         Args:
             data (DataFrame) : Input DataFrame that contains tweet
+            column (String) : Name of column that contains cleaned tweet
+
         Returns:
-            x (DataFrame) : Vectorized features
+            tfidfDF (DataFrame) : Vectorized features
         
         """
 
-        data = self.make_features(data)
-        data = data.drop(['id', 'text'], axis=1)
-        tfidf_feats = self.vectorizer.transform(data.cleaned_text).toarray()
-        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names())
-        x = tfidfDF.merge(data, left_index=True, right_index=True)
-        x = x.drop(['cleaned_text'], axis=1)
-        
-        return x
+        # data = self.make_features(data)
+        tfidf_feats = self.vectorizer.transform(self.make_features(data)[column]).toarray()
+        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names_out())
+        return tfidfDF
 
-    def scale_process(self, data):
+    def merge(self, data):
 
         """Function to scale vectorized text.
 
         Args:
             data (DataFrame) : Input DataFrame that contains tweet
-        Returns:
-            scaled_data (float) : scaled features
         
+        Returns:
+            data (DataFrame) : Transformed features ready to feed to model
         """
 
-        x = self.vector_process(data)
-        scaled_data = self.scaler.transform(x)
+        tfidf = self.transform(data, 'cleaned_text')
+        feats_df = self.make_features(data)
+        data = tfidf.merge(feats_df, left_index=True, right_index=True)
+        data = data.drop(['cleaned_text'], axis=1)
+        return data
+
+    # def scale_process(self, data):
+
+    #     """Function to scale vectorized text.
+
+    #     Args:
+    #         data (DataFrame) : Input DataFrame that contains tweet
+    #     Returns:
+    #         scaled_data (float) : scaled features
         
-        return scaled_data
+    #     """
+
+    #     x = self.vector_process(data)
+    #     scaled_data = self.scaler.transform(x)
+        
+    #     return scaled_data
 
     def predicted_probability(self, data):
 
@@ -211,14 +236,15 @@ class ModelInference():
         
         Args:
             data (DataFrame) : Input DataFrame that contains tweet
+
         Returns:
-            prob (float) : Models probability on data.
+            prob (float) : Models probability on unseen data.
 
         """
 
-        scaled_data = self.scale_process(data)
-        if (scaled_data is not None):
-            prob = self.model.predict_proba(scaled_data)[:,1]
+        final_data = self.merge(data)
+        if (final_data is not None):
+            prob = self.model.predict_proba(final_data.values)[:,1]
             return prob
 
     def predicted_output_category(self, data):
@@ -227,13 +253,14 @@ class ModelInference():
         
         Args:
             data (DataFrame) : Input DataFrame that contains tweet
+
         Returns:
             preds (float) : Models prediction on data.
 
         """
 
-        scaled_data = self.scale_process(data)
-        if (scaled_data is not None):
+        final_data = self.merge(data)
+        if (final_data is not None):
             # To ensure we make predictions even when a single user enters data
-            preds = self.model.predict(scaled_data).reshape(-1, 1)
+            preds = self.model.predict(final_data.values).reshape(-1, 1)
             return preds
