@@ -13,9 +13,7 @@ jobs:
 
       # Download and cache dependencies
       - restore_cache:
-          key: 
-          - v1-dependencies-{{ checksum "requirements.txt" }}
-          - v1-dependencies-
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
       - run:
           name: Install Dependencies
           command: |
@@ -26,8 +24,7 @@ jobs:
       - save_cache:
           paths:
           - "./sentiment_env"
-          key: 
-          - v1-dependencies-{{ checksum "requirements.txt" }}
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
         
       - run:
           name: Run Modelinference.py test
