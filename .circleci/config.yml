@@ -27,6 +27,12 @@ jobs:
           key: v1-dependencies-{{ checksum "requirements.txt" }}
         
       - run:
+          name: Install nltk data
+          command: |
+            source sentiment_env/bin/activate
+            python -m nltk.downloader wordnet punkt
+          
+      - run:
           name: Run Test
           command: |
             source sentiment_env/bin/activate
