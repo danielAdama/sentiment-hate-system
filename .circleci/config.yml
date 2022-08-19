@@ -30,7 +30,7 @@ jobs:
           name: Install nltk data
           command: |
             source sentiment_env/bin/activate
-            python -m nltk.downloader wordnet punkt averaged_perceptron_tagger
+            python -m nltk.downloader wordnet punkt averaged_perceptron_tagger omw-1.4
           
       - run:
           name: Run Test
