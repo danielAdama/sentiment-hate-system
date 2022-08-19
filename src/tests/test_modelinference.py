@@ -3,12 +3,12 @@ import pandas as pd
 import re
 import sys
 import json
+import os
 import numpy as np
 from nltk import sent_tokenize
 from pipeline.modelinference import ModelInference
 from config import config
 
-stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
 mi = ModelInference('vectorizerV3.bin', 'modelV3.bin')
 
 def test_get_pos_tag():
