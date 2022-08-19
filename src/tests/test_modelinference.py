@@ -1,9 +1,5 @@
 import pytest
 import pandas as pd
-import re
-import sys
-import json
-import os
 import numpy as np
 from nltk import sent_tokenize
 from pipeline.modelinference import ModelInference
