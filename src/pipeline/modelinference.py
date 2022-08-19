@@ -31,21 +31,14 @@ class ModelInference():
     """
     
     def __init__(self, vectorizer='vectorizer.bin', model='model.bin'):
-
+        
         self.lemmatizer = WordNetLemmatizer()
-        self.vectorizer = joblib.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/{vectorizer}", "rb"))
-        # self.scaler = pickle.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/scalers/{scaler}", "rb"))
-        self.model = joblib.load(open(f"/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/{model}", "rb"))
-        self.stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
-        self.stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
+        self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/vectorizers/{vectorizer}"), "rb"))
+        # self.scaler = pickle.load(open(os.path.join(os.getcwd(),"src/scalers/{scaler}"), "rb"))
+        self.model = joblib.load(open(os.path.join(os.getcwd(),f"src/models/{model}"), "rb"))
+        self.stopwords = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_nltk_stopwords.json"), "r")))
+        self.stopwords_json = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_json_stopwords.json"), "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
-    
-    # def get_mention(self, data):
-
-    #     """Function to extract number of mentions(@danieltovia) in a tweet
-    #     """
-    #     data['mention_count'] = data.text.apply(lambda x: len(re.findall(r"@[\w\-]+", x)))
-    #     return data
     
     def get_pos_tag(self, text):
         
@@ -214,22 +207,6 @@ class ModelInference():
         data = data.drop(['cleaned_text'], axis=1)
         return data
 
-    # def scale_process(self, data):
-
-    #     """Function to scale vectorized text.
-
-    #     Args:
-    #         data (DataFrame) : Input DataFrame that contains tweet
-    #     Returns:
-    #         scaled_data (float) : scaled features
-        
-    #     """
-
-    #     x = self.vector_process(data)
-    #     scaled_data = self.scaler.transform(x)
-        
-    #     return scaled_data
-
     def predicted_probability(self, data):
 
         """Function that outputs model probability.
@@ -261,6 +238,6 @@ class ModelInference():
 
         final_data = self.merge(data)
         if (final_data is not None):
-            # To ensure we make predictions even when a single user enters data
+            # To ensure we make predictions even when a single user parse data
             preds = self.model.predict(final_data.values).reshape(-1, 1)
             return preds
