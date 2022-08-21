@@ -63,3 +63,19 @@ def expect_df():
     df['cleaned_text'] = ["", "live week   canotwaittocook ", "half website  allgoingwell"]
 
     return df
+
+@pytest.fixture
+def model_test_dummy_data():
+    data = pd.DataFrame({
+    "id":[0, 1, 2, 3, 4, 5, 6],
+    "text":
+    ["Cause cause because YOU",
+    "@user @user @user @user @user your ignorant &amp; ill informed tweets r silly, childish &amp; one dimensional  ",
+    "interview feat grandmaster flash - ze lovely message â«âªâ«â«âºâº #nurap #nudisco #music #paris   â«âªâ«  via @user",
+    "cause me @danieltovia1 and @user get to live together for a whole week!   #cantwaittocook ðð",
+    "@user @user @user i will never understand why my dad left me when i was so young.... :/ #deep #inthefeels",
+    "##isis #islam pc puzzle: converting to a religion of peace leading to violence? http://t.co/tbjusaemuh",
+    "half way through the website now and #allgoingwell very  "
+    ]
+    })
+    return data
