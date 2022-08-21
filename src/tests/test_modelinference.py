@@ -1,3 +1,4 @@
+from operator import le
 import pytest
 import numpy as np
 from pipeline.modelinference import ModelInference
@@ -96,9 +97,11 @@ def test_merged_shape_is_1018(dummy_data):
 def test_predicted_probability(dummy_data):
     expect = [0.1861, 0.0726, 0.0782]
     actual = mi.predicted_probability(dummy_data)
+    assert len(actual) == len(expect)
     assert pytest.approx(actual, 0.1) == expect
 
 def test_predicted_category_of_dummy_data_result_are_all_0(dummy_data):
     expect = np.array([0, 0, 0]).reshape(-1, 1)
     actual = mi.predicted_output_category(dummy_data)
+    assert len(actual) == len(expect)
     np.array_equal(actual, expect)
