@@ -1,4 +1,4 @@
-from operator import le
+import pandas as pd
 import pytest
 import numpy as np
 from pipeline.modelinference import ModelInference
@@ -100,8 +100,10 @@ def test_predicted_probability(dummy_data):
     assert len(actual) == len(expect)
     assert pytest.approx(actual, 0.1) == expect
 
-def test_predicted_category_of_dummy_data_result_are_all_0(dummy_data):
-    expect = np.array([0, 0, 0]).reshape(-1, 1)
-    actual = mi.predicted_output_category(dummy_data)
-    assert len(actual) == len(expect)
-    np.array_equal(actual, expect)
+def test_predicted_category_of_dummy_data_result(model_test_dummy_data):
+    # Correct anwser
+    expect = np.array([0, 1, 0, 0, 1, 1, 0]).reshape(-1, 1)
+    # expect = np.array([0, 0, 0, 0, 0, 0, 0]).reshape(-1, 1)
+    actual = mi.predicted_output_category(model_test_dummy_data)
+    diff = np.array_equal(actual, expect)
+    assert diff is True
