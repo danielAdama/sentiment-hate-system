@@ -187,7 +187,7 @@ class ModelInference():
 
         # data = self.make_features(data)
         tfidf_feats = self.vectorizer.transform(self.make_features(data)[column]).toarray()
-        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names())
+        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names_out())
         return tfidfDF
 
     def merge(self, data):
@@ -240,4 +240,4 @@ class ModelInference():
         if (final_data is not None):
             # To ensure we make predictions even when a single user parse data
             preds = self.model.predict(final_data.values).reshape(-1, 1)
-            return preds
+            return data, preds
