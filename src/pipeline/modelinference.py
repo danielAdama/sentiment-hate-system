@@ -187,7 +187,7 @@ class ModelInference():
 
         # data = self.make_features(data)
         tfidf_feats = self.vectorizer.transform(self.make_features(data)[column]).toarray()
-        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names_out())
+        tfidfDF = pd.DataFrame(tfidf_feats, columns=self.vectorizer.get_feature_names())
         return tfidfDF
 
     def merge(self, data):
