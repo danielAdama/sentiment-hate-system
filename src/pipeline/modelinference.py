@@ -221,7 +221,7 @@ class ModelInference():
 
         final_data = self.merge(data)
         if (final_data is not None):
-            prob = self.model.predict_proba(final_data)[:,1]
+            prob = self.model.predict_proba(final_data.values)[:,1]
             return prob
 
     def predicted_output_category(self, data):
@@ -239,5 +239,5 @@ class ModelInference():
         final_data = self.merge(data)
         if (final_data is not None):
             # To ensure we make predictions even when a single user parse data
-            preds = self.model.predict(final_data).reshape(-1, 1)
+            preds = self.model.predict(final_data.values).reshape(-1, 1)
             return data, preds
