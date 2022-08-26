@@ -3,7 +3,7 @@ import pandas as pd
 from nltk import sent_tokenize
 from pipeline.modelinference import ModelInference
 
-mi = ModelInference('vectorizerV3.bin', 'modelV3.bin')
+mi = ModelInference('vectorizerV4.bin', 'modelV4.bin')
 
 @pytest.fixture
 def dummy_data():
@@ -70,11 +70,11 @@ def model_test_dummy_data():
     "id":[0, 1, 2, 3, 4, 5, 6],
     "text":
     ["Cause cause because YOU",
-    "@user @user @user @user @user your ignorant &amp; ill informed tweets r silly, childish &amp; one dimensional  ",
+    "suppo the #taiji fisherman! no bullying! no racism! #tweet4taiji #thecove #seashepherd",
     "interview feat grandmaster flash - ze lovely message â«âªâ«â«âºâº #nurap #nudisco #music #paris   â«âªâ«  via @user",
     "cause me @danieltovia1 and @user get to live together for a whole week!   #cantwaittocook ðð",
-    "@user @user @user i will never understand why my dad left me when i was so young.... :/ #deep #inthefeels",
-    "##isis #islam pc puzzle: converting to a religion of peace leading to violence? http://t.co/tbjusaemuh",
+    "  i can't believe how much i used to care what people thought of me now i'm just like ""lol fuck u, fuck you and  wtf fuck youâ¦",
+    "it could be worse. #embarrassed #unfounate #traumatized #bitches black lives should matter to other black people.",
     "half way through the website now and #allgoingwell very  "
     ]
     })
