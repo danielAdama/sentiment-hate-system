@@ -838,8 +838,7 @@ xgb_cv_score = cross_validation_score(XGBClassifier(n_estimators=350, eval_metri
 # In[48]:
 
 
-compare_score = pd.DataFrame({'nb_cv_score':nb_cv_score,
-                              'log_cv_score':log_cv_score,
+compare_score = pd.DataFrame({'log_cv_score':log_cv_score,
                               'rf_cv_score':rf_cv_score,
                               'lgm_cv_score':lgm_cv_score,
                               'xgb_cv_score':xgb_cv_score
