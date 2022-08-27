@@ -348,11 +348,6 @@ tfVectorizer, data_train_tfidf, unlabelled_tfidf = transform(data_cleaned, unlab
 
 # ## Frequency distribution of Part of Speech Tags
 
-# In[14]:
-
-
-get_ipython().run_cell_magic('time', '', 'pos_group = {\n    \'noun\':[\'NN\',\'NNS\',\'NNP\',\'NNPS\'],\n    \'pron\':[\'PRP\',\'PRP$\',\'WP\',\'WP$\'],\n    \'verb\':[\'VB\',\'VBD\',\'VBG\',\'VBN\',\'VBP\',\'VBZ\'],\n    \'adj\':[\'JJ\',\'JJR\',\'JJS\'],\n    \'adv\':[\'RB\',\'RBR\',\'RBS\',\'WRB\']\n}\n\n        \ndef count_pos_tag(text, flags):\n    \n    """Function to check and count the respective parts of speech tags"""\n    \n    count=0\n    tokens = [contractions.fix(i.lower()) for i in word_tokenize(text)]\n    tags = pos_tag(tokens)\n\n    for (token, tag) in tags:\n        token = re.sub(r"([0-9]+|[-_@./&+]+|``)", \'\', token)\n        token = re.sub(r"(@[A-Za-z0-9_]+)|[^\\w\\s]|#|http\\S+", \'\', token)\n        token = token.encode("ascii", "ignore")\n        token = token.decode()\n        if tag in pos_group[flags]:\n            count+=1\n    return count\n\ndef make_features(data):\n\n    data[\'noun_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'noun\'))\n    data[\'verb_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'verb\'))\n    data[\'adj_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adj\'))\n    data[\'adv_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adv\'))\n    data[\'pron_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'pron\'))\n\n    data[\'char_count\'] = data.tweet.apply(len)\n    data[\'word_count\'] = data.tweet.apply(lambda x: len(x.split()))\n    data[\'uniq_word_count\'] = data.tweet.apply(lambda x: len(set(x.split())))\n    data[\'htag_count\'] = data.tweet.apply(lambda x: len(re.findall(r\'#[\\w\\-]+\', x)))\n    data[\'stopword_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in word_tokenize(x) if wrd in stopwords]))\n    data[\'sent_count\'] = data.tweet.apply(lambda x: len(sent_tokenize(x)))\n    data[\'avg_word_len\'] = data[\'char_count\']/(data[\'word_count\']+1)\n    data[\'avg_sent_len\'] = data[\'word_count\']/(data[\'sent_count\']+1)\n    data[\'uniq_vs_words\'] = data.uniq_word_count/(data.word_count+1) # Ratio of unique words to the total number of words\n    data[\'stopwords_vs_words\'] = data.stopword_count/(data.word_count+1)\n    data[\'title_word_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.istitle()]))\n    data[\'uppercase_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.isupper()]))\n    data = data.drop([\'id\', \'tweet\'], axis=1)\n    return data\n\n\ndata_cleaned = make_features(data_cleaned)\nunlabelled_cleaned = make_features(unlabelled_cleaned)\n\ndata_cleaned = merge(data_train_tfidf, data_cleaned)\nunlabelled_cleaned = merge(unlabelled_tfidf, unlabelled_cleaned)\n')
-
 
 # In[15]:
 
@@ -423,23 +418,6 @@ print(pd.isnull(unlabelled_cleaned).sum().sort_values(ascending=False))
 
 # In[18]:
 
-
-for a in [0.0001, 0.001, 0.01, 0.1, 1, 10]:
-    pred, y_pred = train(MultinomialNB(alpha=a), MinMaxScaler(), X_train, y_train, X_test)
-    auc = roc_auc_score(y_test, pred)
-    print(f"{a}->{auc:.4f}")
-
-
-# In[19]:
-
-
-pred, y_pred = train(MultinomialNB(alpha=10), MinMaxScaler(), X_train, y_train, X_test)
-print(f"Initial ROC AUC Naive Bayes Score before Semi-Supervised Learning: {roc_auc_score(y_test, pred):.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
-cm = confusion_matrix(y_test, y_pred)
-confusion_matrix_plot(cm)
-roc_auc_curve(y_test, pred)
-plt.show()
 
 
 # The orange line seen here represents the random selection. What it says is that if i get 50% of the False Positives in my random selection, I also get 50% of the True Positives or True Users that will hate.
@@ -808,7 +786,6 @@ def cross_validation_score(ml_model, scaler, thres = 0.5, random_st=42, cols = d
 
 
 y=target_labelled_data
-nb_cv_score = cross_validation_score(MultinomialNB(alpha=10), MinMaxScaler())
 
 
 # ## Logistic Regression
