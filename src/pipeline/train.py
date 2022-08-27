@@ -1,30 +1,38 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# # Supervised Learning for Best Model
+
+# In[1]:
+
 
 import numpy as np
 import pandas as pd
+pd.set_option('display.max_columns', None)
 import os
 import json
 import datetime
 import contractions
-import pickle
+from collections import Counter
 import mysql.connector
 from mysql.connector import Error
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, ADASYN
+from imblearn.under_sampling import RandomUnderSampler
 from imblearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.pipeline import make_pipeline
-import joblib
-import statsmodels.api as sm
 from sklearn.compose import ColumnTransformer
-from sklearn.feature_extraction.text import TfidfVectorizer
+import joblib
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer, TfidfTransformer
 from sklearn.metrics import classification_report, precision_score, recall_score, accuracy_score,f1_score
 from sklearn.metrics import auc, average_precision_score, confusion_matrix, roc_auc_score, roc_curve
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
+# import xgboost as xgb
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from nltk import word_tokenize, sent_tokenize
@@ -33,17 +41,23 @@ from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
 from string import punctuation
 import re
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 import seaborn as sns
+sns.set_style("white")
+plt.rcParams['figure.figsize'] = (18, 5)
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 warnings.simplefilter('ignore', UserWarning)
 import sys
 # Path to the module (ModelInference) and config
-# sys.path.append('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src')
+sys.path.append('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src')
 from pipeline.modelinference import ModelInference
 from config import config
 
-mi = ModelInference('vectorizerV3.bin', 'modelV3.bin')
+
+# In[2]:
+
 
 class ToPandasDF():
     def __init__(self, password, host, database, user):
@@ -111,16 +125,19 @@ class ToPandasDF():
         data = data[~data.tweet.duplicated()]
         print(f'Duplicate entry removed: {data.tweet.duplicated().sum()}')
         # We will remove the usernames and RT(retweet) in the tweet column
-        # data['tweet'] = data.tweet.replace(regex=re.compile(r"@([A-Za-z0-9_]+)"), value='')
-        # data['tweet'] = data.tweet.replace(regex=re.compile(r"RT([\s:]+)"), value='')
+        data['tweet'] = data.tweet.replace(regex=re.compile(r"@([A-Za-z0-9_]+)"), value='')
+        data['tweet'] = data.tweet.replace(regex=re.compile(r"RT([\s:]+)"), value='')
         return data
 
     def load_train_data(self):
-        data = pd.read_csv(os.path.join(config.DATAPATH, 'train.csv'))
+        data1 = pd.read_csv(os.path.join(config.DATAPATH, 'train.csv'))
+        data2 = pd.read_csv(os.path.join(config.DATAPATH, 'HateSpeechData.csv'), index_col=0)
+        data2 = data2.rename(columns={'hate_speech':'hate', 'offensive_language':'offensive',
+                                      'neither':'neutral', 'class':'label'
+                                     })
         # Remove all records with no label
-        data = data[data.label != '']
-        # data['tweet'] = data.tweet.replace(regex=re.compile(r"@([A-Za-z0-9_]+)"), value='')
-        return data
+        data1 = data1[data1.label != '']
+        return data1, data2
 
 if __name__ == '__main__':
     
@@ -128,59 +145,97 @@ if __name__ == '__main__':
     stored_data = t.MySQLconnect("SELECT id, created_at, tweet FROM `twitterdb`.`twitter_table`;")
     t.check_if_valid_data(stored_data)
     unlabelled_data = t.basic_processing(stored_data)
-    labelled_data = t.load_train_data()
+    data1, data2 = t.load_train_data()
 
 
 # In[3]:
 
 
-# print(unlabelled_data.shape)
-# unlabelled_data.info()
-# unlabelled_data.head(10)
+print(unlabelled_data.shape)
+unlabelled_data.info()
+unlabelled_data.head(10)
 
 
 # In[4]:
 
 
-# Initialize the TfidfVectorizer, Lemmatizer and stopwords
-# tfVectorizer = TfidfVectorizer(min_df=0.0, max_df=1.0, max_features=800, ngram_range=(1, 1), use_idf=True)tfVectorizer = TfidfVectorizer(min_df=0.0, max_df=1.0, max_features=800, ngram_range=(1, 1), use_idf=True)
-# tfVectorizer = TfidfVectorizer(min_df=5, max_df=0.75, max_features=1000, ngram_range=(1, 2))
-# lemmatizer = WordNetLemmatizer()
-# stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
-# stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
-# stopwords_punctuation = set.union(stopwords, stopwords_json, punctuation)
+# 0=hate, 1=offensive, 2=neutral
+print(data2.shape)
+print()
+print(data2.label.value_counts())
+data2.info()
+data2.head(10)
 
-# print(labelled_data.shape)
-# labelled_data.info()
-# labelled_data.head(10)
-
-
-# # Target Exploration (label)
 
 # In[5]:
 
 
-# labelled_data.label.value_counts()
+print(data2[data2.label==1].tweet.iloc[9])
+data2[['label', 'tweet']].tail(10)
 
-
-# **The dataset is imbalanced based on hate speech**
 
 # In[6]:
 
 
-# size=labelled_data.label.value_counts()
-# labels='Non Hate', 'Hate'
-# fig, ax = plt.subplots(figsize=(8, 6))
-# ax.pie(size, explode=(0, 0.2), labels=labels, autopct='%1.1f%%', startangle=90, colors=['blue', 'red'])
-# ax.axis('equal')
-# plt.title('Proportion of Twitter Users', size=15)
-# ax.legend(labels, bbox_to_anchor=(1, 0), loc='lower left', title='Speech')
-# plt.show()
+data2 = data2.copy()
+data2 = data2[['label', 'tweet']]
+# Create the hate and non-hate categories by combining hate and offensive categories
+# 0=hate, 1=offensive, 2=neutral
+data2['label'] = data2.label.replace([1], 0).replace([0], 1).replace([2], 0)
+print(data2.label.value_counts())
+# New label 1=hate & 0=non-hate 
+data2[['label', 'tweet']].tail(10)
 
-
-# It is given that 7.0% of twitter users might Hate. So the baseline model could be to predict that 7.0% of the users will Hate. Given 7.0% is a small number, we need to ensure that the chosen model does predict with great accuracy this 7.0% as it is of interest to the company to identify these users as opposed to accurately predicting the users that are non haters.
 
 # In[7]:
+
+
+# Initialize the TfidfVectorizer, Lemmatizer and stopwords
+# tfVectorizer = TfidfVectorizer(min_df=0.0, max_df=1.0, max_features=800, ngram_range=(1, 1), use_idf=True)
+# tfVectorizer = TfidfVectorizer(min_df=5, max_df=0.75, max_features=1000, ngram_range=(1, 2))
+tfVectorizer = TfidfVectorizer(sublinear_tf=True, 
+                               min_df=5, norm='l2', encoding='latin-1', max_features=1000,
+                               ngram_range=(1, 2))
+
+lemmatizer = WordNetLemmatizer()
+stopwords = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_nltk_stopwords.json", "r")))
+stopwords_json = set(json.load(open("/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/stopWords/custome_json_stopwords.json", "r")))
+stopwords_punctuation = set.union(stopwords, stopwords_json, punctuation)
+
+labelled_data = pd.concat([data1, data2], axis=0).reset_index()
+labelled_data = labelled_data.drop('id', axis=1)
+labelled_data = labelled_data.rename(columns={'index':'id'})
+print(labelled_data.shape)
+labelled_data.info()
+labelled_data.head(10)
+
+
+# # Target Exploration (label)
+
+# In[8]:
+
+
+labelled_data.label.value_counts()
+
+
+# **The dataset is imbalanced based on hate speech**
+
+# In[9]:
+
+
+size=labelled_data.label.value_counts()
+labels='Non Hate', 'Hate'
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.pie(size, explode=(0, 0.2), labels=labels, autopct='%1.1f%%', startangle=90, colors=['blue', 'red'])
+ax.axis('equal')
+plt.title('Proportion of Twitter Users', size=15)
+ax.legend(labels, bbox_to_anchor=(1, 0), loc='lower left', title='Speech')
+plt.show()
+
+
+# It is given that 40.3% of twitter users might Hate. So the baseline model could be to predict that 40.3% of the users will Hate. Given 40.3% is a small number, we need to ensure that the chosen model does predict with great accuracy this 40.3% as it is of interest to the company to identify these users as opposed to accurately predicting the users that are non haters.
+
+# In[10]:
 
 
 def basic_prep(data):
@@ -243,7 +298,7 @@ print(f'The shortest for unlabelled tweet is: {min(unlabelled_cleaned.cleaned_te
 
 # # Visualize Word frequency
 
-# In[8]:
+# In[11]:
 
 
 # Let's split the dataset into non hate(0) and hate(1) so as to visualize the frequency of the words
@@ -253,14 +308,14 @@ hate = data_cleaned[data_cleaned['label']==1]
 wordcloud = WordCloud(background_color='black').generate(' '.join(no_hate.cleaned_text))
 plt.figure(figsize=(12,12))
 plt.imshow(wordcloud, interpolation='bilinear')
-plt.title('No Hatred Text')
+plt.title('Non Hate Text')
 plt.axis('off')
 plt.show()
 
 
 # **Above, we can see that those are `non-hate` related words**
 
-# In[9]:
+# In[12]:
 
 
 wordcloud = WordCloud(background_color='black').generate(' '.join(hate.cleaned_text))
@@ -271,15 +326,17 @@ plt.axis('off')
 plt.show()
 
 
-# In[10]:
+# In[13]:
 
 
-def transform(data, column):
-    # We will encode text data using TF-IDF
-    tfidf_feats = tfVectorizer.fit(data[column])
-    tfidf_feat_arr = tfidf_feats.transform(data[column]).toarray()
-    tfidf = pd.DataFrame(tfidf_feat_arr, columns=tfVectorizer.get_feature_names_out())
-    return tfidf, tfidf_feats
+# We will encode text data using TF-IDF
+def transform(data_cleaned, unlabelled_cleaned):
+    tfVectorizer.fit(data_cleaned.cleaned_text)
+    train_tfidf_feat = tfVectorizer.transform(data_cleaned.cleaned_text).toarray()
+    unlabelled_tfidf_feat = tfVectorizer.transform(unlabelled_cleaned.cleaned_text).toarray()
+    train_tfidf = pd.DataFrame(train_tfidf_feat, columns=tfVectorizer.get_feature_names_out())
+    unlabelled_tfidf = pd.DataFrame(unlabelled_tfidf_feat, columns=tfVectorizer.get_feature_names_out())
+    return tfVectorizer, train_tfidf, unlabelled_tfidf
 
 def merge(tfidf, data_to_merge):
     # Join both DataFrames
@@ -287,39 +344,17 @@ def merge(tfidf, data_to_merge):
     data = data.drop(['cleaned_text'], axis=1)
     return data
 
-data_tfidf, tfVectorized = transform(data_cleaned, 'cleaned_text')
-unlabelled_tfidf, _ = transform(unlabelled_cleaned, 'cleaned_text')
+tfVectorizer, data_train_tfidf, unlabelled_tfidf = transform(data_cleaned, unlabelled_cleaned)
 
 
 # # Feature Engineering
 
 # ## Frequency distribution of Part of Speech Tags
 
-# In[11]:
-
-
-get_ipython().run_cell_magic('time', '', 'pos_group = {\n    \'noun\':[\'NN\',\'NNS\',\'NNP\',\'NNPS\'],\n    \'pron\':[\'PRP\',\'PRP$\',\'WP\',\'WP$\'],\n    \'verb\':[\'VB\',\'VBD\',\'VBG\',\'VBN\',\'VBP\',\'VBZ\'],\n    \'adj\':[\'JJ\',\'JJR\',\'JJS\'],\n    \'adv\':[\'RB\',\'RBR\',\'RBS\',\'WRB\']\n}\n\n        \ndef count_pos_tag(text, flags):\n    \n    """Function to check and count the respective parts of speech tags"""\n    \n    count=0\n    tokens = [contractions.fix(i.lower()) for i in word_tokenize(text)]\n    tags = pos_tag(tokens)\n\n    for (token, tag) in tags:\n        token = re.sub(r"([0-9]+|[-_@./&+]+|``)", \'\', token)\n        token = re.sub(r"(@[A-Za-z0-9_]+)|[^\\w\\s]|#|http\\S+", \'\', token)\n        token = token.encode("ascii", "ignore")\n        token = token.decode()\n        if tag in pos_group[flags]:\n            count+=1\n    return count\n\ndef make_features(data):\n\n    data[\'noun_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'noun\'))\n    data[\'verb_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'verb\'))\n    data[\'adj_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adj\'))\n    data[\'adv_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adv\'))\n    data[\'pron_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'pron\'))\n\n    data[\'char_count\'] = data.tweet.apply(len)\n    data[\'word_count\'] = data.tweet.apply(lambda x: len(x.split()))\n    data[\'uniq_word_count\'] = data.tweet.apply(lambda x: len(set(x.split())))\n    data[\'htag_count\'] = data.tweet.apply(lambda x: len(re.findall(r\'#[\\w\\-]+\', x)))\n    data[\'stopword_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in word_tokenize(x) if wrd in stopwords]))\n    data[\'sent_count\'] = data.tweet.apply(lambda x: len(sent_tokenize(x)))\n    data[\'avg_word_len\'] = data[\'char_count\']/(data[\'word_count\']+1)\n    data[\'avg_sent_len\'] = data[\'word_count\']/(data[\'sent_count\']+1)\n    data[\'uniq_vs_words\'] = data.uniq_word_count/(data.word_count+1) # Ratio of unique words to the total number of words\n    data[\'stopwords_vs_words\'] = data.stopword_count/(data.word_count+1)\n    data[\'title_word_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.istitle()]))\n    data[\'uppercase_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.isupper()]))\n    data = data.drop([\'id\', \'tweet\'], axis=1)\n    return data\n\n\ndata_cleaned = make_features(data_cleaned)\nunlabelled_cleaned = make_features(unlabelled_cleaned)\n\ndata_cleaned = merge(data_tfidf, data_cleaned)\nunlabelled_cleaned = merge(unlabelled_tfidf, unlabelled_cleaned)\n')
-
-
-# In[12]:
-
-
-print(f"Number of columns of the data_cleaned: {data_cleaned.shape[1]}")
-print(f"Number of columns of the unlabelled_cleaned: {unlabelled_cleaned.shape[1]}")
-
-
-# # Check for Missing Values
-
-# In[13]:
-
-
-print(data_cleaned.isnull().sum().sort_values(ascending=False))
-
-
 # In[14]:
 
 
-print(unlabelled_cleaned.isnull().sum().sort_values(ascending=False))
+get_ipython().run_cell_magic('time', '', 'pos_group = {\n    \'noun\':[\'NN\',\'NNS\',\'NNP\',\'NNPS\'],\n    \'pron\':[\'PRP\',\'PRP$\',\'WP\',\'WP$\'],\n    \'verb\':[\'VB\',\'VBD\',\'VBG\',\'VBN\',\'VBP\',\'VBZ\'],\n    \'adj\':[\'JJ\',\'JJR\',\'JJS\'],\n    \'adv\':[\'RB\',\'RBR\',\'RBS\',\'WRB\']\n}\n\n        \ndef count_pos_tag(text, flags):\n    \n    """Function to check and count the respective parts of speech tags"""\n    \n    count=0\n    tokens = [contractions.fix(i.lower()) for i in word_tokenize(text)]\n    tags = pos_tag(tokens)\n\n    for (token, tag) in tags:\n        token = re.sub(r"([0-9]+|[-_@./&+]+|``)", \'\', token)\n        token = re.sub(r"(@[A-Za-z0-9_]+)|[^\\w\\s]|#|http\\S+", \'\', token)\n        token = token.encode("ascii", "ignore")\n        token = token.decode()\n        if tag in pos_group[flags]:\n            count+=1\n    return count\n\ndef make_features(data):\n\n    data[\'noun_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'noun\'))\n    data[\'verb_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'verb\'))\n    data[\'adj_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adj\'))\n    data[\'adv_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'adv\'))\n    data[\'pron_count\'] = data.tweet.apply(lambda x: count_pos_tag(x, \'pron\'))\n\n    data[\'char_count\'] = data.tweet.apply(len)\n    data[\'word_count\'] = data.tweet.apply(lambda x: len(x.split()))\n    data[\'uniq_word_count\'] = data.tweet.apply(lambda x: len(set(x.split())))\n    data[\'htag_count\'] = data.tweet.apply(lambda x: len(re.findall(r\'#[\\w\\-]+\', x)))\n    data[\'stopword_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in word_tokenize(x) if wrd in stopwords]))\n    data[\'sent_count\'] = data.tweet.apply(lambda x: len(sent_tokenize(x)))\n    data[\'avg_word_len\'] = data[\'char_count\']/(data[\'word_count\']+1)\n    data[\'avg_sent_len\'] = data[\'word_count\']/(data[\'sent_count\']+1)\n    data[\'uniq_vs_words\'] = data.uniq_word_count/(data.word_count+1) # Ratio of unique words to the total number of words\n    data[\'stopwords_vs_words\'] = data.stopword_count/(data.word_count+1)\n    data[\'title_word_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.istitle()]))\n    data[\'uppercase_count\'] = data.tweet.apply(lambda x: len([wrd for wrd in x.split() if wrd.isupper()]))\n    data = data.drop([\'id\', \'tweet\'], axis=1)\n    return data\n\n\ndata_cleaned = make_features(data_cleaned)\nunlabelled_cleaned = make_features(unlabelled_cleaned)\n\ndata_cleaned = merge(data_train_tfidf, data_cleaned)\nunlabelled_cleaned = merge(unlabelled_tfidf, unlabelled_cleaned)\n')
 
 
 # In[15]:
@@ -328,7 +363,12 @@ print(unlabelled_cleaned.isnull().sum().sort_values(ascending=False))
 target_labelled_data = data_cleaned.label
 data_cleaned = data_cleaned.drop(['label'], axis=1)
 # unlabelled_cleaned = unlabelled_cleaned.drop('id', axis=1)
-X_train, X_test, y_train, y_test = train_test_split(data_cleaned, target_labelled_data, test_size=0.2, random_state=43)
+print(f"Number of columns of the data_cleaned: {data_cleaned.shape[1]}")
+print(f"Number of columns of the unlabelled_cleaned: {unlabelled_cleaned.shape[1]}")
+print()
+X_train, X_test, y_train, y_test = train_test_split(data_cleaned.values, target_labelled_data.values,
+                                                    test_size=0.2, random_state=43)
+
 print(f"Train Size: {(X_train.shape[0]/data_cleaned.shape[0]):.2f}%")
 print(f"Test Size: {(X_test.shape[0]/data_cleaned.shape[0]):.2f}%")
 print(X_train.shape, y_train.shape, X_test.shape, y_test.shape, unlabelled_cleaned.shape)
@@ -358,19 +398,33 @@ def train(model, scaler, X_train, y_train, X_test):
     """Sklearn training interface
     """
     pipeline = make_pipeline(scaler, model)
-    pipeline.fit(X_train.values, y_train)
-    pred = pipeline.predict_proba(X_test.values)[:, 1]
-    y_pred = pipeline.predict(X_test.values)
+    pipeline.fit(X_train, y_train)
+    pred = pipeline.predict_proba(X_test)[:, 1]
+    y_pred = pipeline.predict(X_test)
     return pred, y_pred
+
+
+# # Check for Missing Values
+
+# In[16]:
+
+
+print(pd.isnull(data_cleaned).sum().sort_values(ascending=False))
+
+
+# In[17]:
+
+
+print(pd.isnull(unlabelled_cleaned).sum().sort_values(ascending=False))
 
 
 # # Model Building & Evaluation
 
-# ### Get the best Model to perform Pseudo-Labelling on the unlabelled_data
+# ### Get the best Model to perform Pseudo-Labelling (Semi-Supervised Learning) on the unlabelled_data
 
 # ## MultinomialNB & Parameter tuning
 
-# In[16]:
+# In[18]:
 
 
 for a in [0.0001, 0.001, 0.01, 0.1, 1, 10]:
@@ -379,11 +433,12 @@ for a in [0.0001, 0.001, 0.01, 0.1, 1, 10]:
     print(f"{a}->{auc:.4f}")
 
 
-# In[17]:
+# In[19]:
 
 
-pred, y_pred = train(MultinomialNB(alpha=0.1), MinMaxScaler(), X_train, y_train, X_test)
-print(f"ROC AUC Naive Bayes Score: {roc_auc_score(y_test, pred):.4f}")
+pred, y_pred = train(MultinomialNB(alpha=10), MinMaxScaler(), X_train, y_train, X_test)
+print(f"Initial ROC AUC Naive Bayes Score before Semi-Supervised Learning: {roc_auc_score(y_test, pred):.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
 cm = confusion_matrix(y_test, y_pred)
 confusion_matrix_plot(cm)
 roc_auc_curve(y_test, pred)
@@ -394,21 +449,21 @@ plt.show()
 
 # ## Logistic Regression & Parameter tuning
 
-# In[18]:
+# In[20]:
 
 
-for c in [0.0001, 0.001, 0.01, 0.1, 1]:
+for c in [0.00005, 0.0001, 0.001, 0.01, 0.1, 1]:
     pred, y_pred = train(LogisticRegression(solver='liblinear', C=c), StandardScaler(),
                          X_train, y_train, X_test)
     auc = roc_auc_score(y_test, pred)
     print(f"{c}->{auc:.4f}")
 
 
-# In[19]:
+# In[21]:
 
 
-for m in [0.0001, 0.01, 0.1]:
-    print(f"Inverse of regularization strength {m}")
+for m in [0.01, 0.1, 1]:
+    print(f"Inverse of regularization strength C-> {m}")
     
     for tol in [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10]:
         pred, y_pred = train(LogisticRegression(solver='liblinear', C=m, tol=tol), StandardScaler(),
@@ -418,11 +473,11 @@ for m in [0.0001, 0.01, 0.1]:
     print()
 
 
-# In[20]:
+# In[22]:
 
 
 for mClass in ["auto", "ovr"]:
-    pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.0001, tol=10, multi_class=mClass),
+    pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.1, tol=1e-05, multi_class=mClass),
                          StandardScaler(),
                          X_train, y_train, X_test)
     
@@ -430,10 +485,10 @@ for mClass in ["auto", "ovr"]:
     print(f"{mClass}->{auc:.4f}")
 
 
-# In[21]:
+# In[23]:
 
 
-pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.0001, tol=10, multi_class='auto'),
+pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.1, tol=1e-05, multi_class='auto'),
                      StandardScaler(),
                      X_train, y_train, X_test)
 print(f"ROC AUC Logistic Regression Score: {roc_auc_score(y_test, pred):.4f}")
@@ -444,27 +499,28 @@ plt.show()
 
 # #### Apply Cost-Sensitive Logistic Regression for Imbalanced Classification
 
-# In[22]:
+# In[24]:
 
 
 balance = [{0:1,1:1}, {0:1,1:10}, {0:1,1:100}]
 
 for weight in balance:
-    pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.0001, tol=10, multi_class='auto',
+    pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.1, tol=1e-05, multi_class='auto',
                                             class_weight=weight),
                          StandardScaler(),
                          X_train, y_train, X_test)
     print(f"ROC AUC Logistic Regression Score: {roc_auc_score(y_test, pred):.4f}")
+    print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
     cm = confusion_matrix(y_test, y_pred)
     confusion_matrix_plot(cm)
     plt.show()
 
 
-# In[23]:
+# In[27]:
 
 
-pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.0001, tol=10, multi_class='auto',
-                                        class_weight={0:1,1:10}),
+pred, y_pred = train(LogisticRegression(solver='liblinear', C=0.1, tol=1e-05, multi_class='auto',
+                                        class_weight={0:1,1:1}),
                      StandardScaler(),
                      X_train, y_train, X_test)
 print(f"ROC AUC Logistic Regression Score: {roc_auc_score(y_test, pred):.4f}")
@@ -475,16 +531,17 @@ plt.show()
 
 # compare the actual class and predicted class
 out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
 out['Predicted_class'] = y_pred[0:30]
 out
 
 
 # ## Random Forest & Parameter tuning
 
-# In[24]:
+# In[26]:
 
 
-for n in [250, 300, 350]:
+for n in [5, 10, 50, 200, 250, 300, 350]:
     pred, y_pred = train(RandomForestClassifier(n_estimators=n, random_state=42),
                          StandardScaler(),
                          X_train, y_train, X_test)
@@ -492,7 +549,7 @@ for n in [250, 300, 350]:
     print(f"{n}->{auc:.4f}")
 
 
-# In[25]:
+# In[28]:
 
 
 for m in [300, 350]:
@@ -507,19 +564,19 @@ for m in [300, 350]:
     print()
 
 
-# In[26]:
+# In[29]:
 
 
-for samp in [2, 3, 4]:
+for depth in [1, 2, 3, 4, 5]:
     pred, y_pred = train(RandomForestClassifier(n_estimators=350, criterion='entropy', 
-                                                max_depth=None, min_samples_split=samp),
+                                                max_depth=depth),
                          StandardScaler(),
                          X_train, y_train, X_test)
     auc = roc_auc_score(y_test, pred)
-    print(f"{samp}->{auc:.4f}")
+    print(f"{depth}->{auc:.4f}")
 
 
-# In[27]:
+# In[30]:
 
 
 pred, y_pred = train(RandomForestClassifier(n_estimators=350, criterion='entropy',
@@ -535,11 +592,12 @@ plt.show()
 
 # compare the actual class and predicted class
 out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
 out['Predicted_class'] = y_pred[0:30]
 out
 
 
-# In[28]:
+# In[31]:
 
 
 pred, y_pred = train(RandomForestClassifier(n_estimators=350, criterion='entropy',
@@ -556,13 +614,14 @@ plt.show()
 
 # compare the actual class and predicted class
 out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
 out['Predicted_class'] = y_pred[0:30]
 out
 
 
 # ## LGMClassifier & Parameter tuning
 
-# In[29]:
+# In[32]:
 
 
 for n in [25, 50, 100, 150, 200, 250, 300, 350, 400]:
@@ -573,21 +632,33 @@ for n in [25, 50, 100, 150, 200, 250, 300, 350, 400]:
     print(f"{n}->{auc:.4f}")
 
 
-# In[30]:
+# In[33]:
+
+
+for alpha in [0.001, 0.01, 0.1, 1, 1.5, 2, 2.5]:
+    pred, y_pred = train(LGBMClassifier(n_estimators=250, objective='binary', reg_alpha=alpha),
+                         StandardScaler(),
+                         X_train, y_train, X_test)
+    auc = roc_auc_score(y_test, pred)
+    print(f"{alpha}->{auc:.4f}")
+
+
+# In[34]:
 
 
 for lr in [0.001, 0.01, 0.1, 1, 1.5, 2, 2.5]:
-    pred, y_pred = train(LGBMClassifier(n_estimators=250, objective='binary', learning_rate=lr),
+    pred, y_pred = train(LGBMClassifier(n_estimators=250, objective='binary', 
+                                        reg_alpha=0.01, learning_rate=lr),
                          StandardScaler(),
                          X_train, y_train, X_test)
     auc = roc_auc_score(y_test, pred)
     print(f"{lr}->{auc:.4f}")
 
 
-# In[31]:
+# In[35]:
 
 
-pred, y_pred = train(LGBMClassifier(n_estimators=250, learning_rate=0.1, objective='binary'),
+pred, y_pred = train(LGBMClassifier(n_estimators=250, reg_alpha=0.01, learning_rate=0.1, objective='binary'),
                      StandardScaler(),
                      X_train, y_train, X_test)
 auc = roc_auc_score(y_test, pred)
@@ -597,44 +668,46 @@ confusion_matrix_plot(cm)
 plt.show()
 
 
-# In[32]:
+# In[36]:
 
 
 balance = [{0:1,1:1}, {0:1,1:10}, {0:1,1:100}]
 
 for weight in balance:
-    pred, y_pred = train(LGBMClassifier(n_estimators=250, learning_rate=0.1, objective='binary',
+    pred, y_pred = train(LGBMClassifier(n_estimators=250, reg_alpha=0.01, learning_rate=0.1, objective='binary',
                                         class_weight=weight),
                          StandardScaler(),
                          X_train, y_train, X_test)
     auc = roc_auc_score(y_test, pred)
     print(f"ROC AUC LGBM Classifier Score: {auc:.4f}")
+    print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
     cm = confusion_matrix(y_test, y_pred)
     confusion_matrix_plot(cm)
     plt.show()
 
 
-# In[33]:
+# In[32]:
 
 
-pred, y_pred = train(LGBMClassifier(n_estimators=250, learning_rate=0.1, objective='binary',
-                                    class_weight={0:1,1:10}),
+pred, y_pred = train(LGBMClassifier(n_estimators=250, reg_alpha=0.01, learning_rate=0.1, objective='binary',
+                                    class_weight={0:1,1:1}),
                      StandardScaler(),
                      X_train, y_train, X_test)
 auc = roc_auc_score(y_test, pred)
 print(f"ROC AUC LGBM Classifier Score: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
 cm = confusion_matrix(y_test, y_pred)
 confusion_matrix_plot(cm)
 roc_auc_curve(y_test, pred)
 plt.show()
 
 
-# ## XGBoost & Parameter tuning
+# ## XGBoost Classifier & Parameter tuning
 
-# In[34]:
+# In[38]:
 
 
-for n in [200, 300, 350]:
+for n in [200, 250, 300, 350]:
     pred, y_pred = train(XGBClassifier(n_estimators=n, eval_metric="auc", 
                                        objective='binary:logistic'),
                          StandardScaler(),
@@ -643,10 +716,10 @@ for n in [200, 300, 350]:
     print(f"{n}->{auc:.4f}")
 
 
-# In[35]:
+# In[39]:
 
 
-for lr in [0.0001, 0.001, 0.1, 1]:
+for lr in [0.0001, 0.001, 0.1, 1, 1.5]:
     pred, y_pred = train(XGBClassifier(n_estimators=350, eval_metric="auc", 
                                        objective='binary:logistic', learning_rate=lr),
                          StandardScaler(),
@@ -655,19 +728,7 @@ for lr in [0.0001, 0.001, 0.1, 1]:
     print(f"{lr}->{auc:.4f}")
 
 
-# In[22]:
-
-
-params = {
-    'objective':'binary:logistic',
-    'n_estimators':350,
-    'eval_metric':'auc'
-}
-pred, y_pred = trainXGB(StandardScaler(), 
-                        X_train, y_train, X_test, params)
-
-
-# In[36]:
+# In[40]:
 
 
 pred, y_pred = train(XGBClassifier(n_estimators=350, eval_metric="auc", 
@@ -682,11 +743,11 @@ roc_auc_curve(y_test, pred)
 plt.show()
 
 
-# The Random Forest model has the best performance. We will use cross validation to prevent overfitting and check so we know the actual scores of individual model.
+# The LGBMClassifer has the best performance. We will use cross validation to prevent overfitting and check so we know the actual scores of individual model.
 
 # # Model Evaluation with Cross Validation
 
-# In[17]:
+# In[41]:
 
 
 def cross_validation_score(ml_model, scaler, thres = 0.5, random_st=42, cols = data_cleaned.columns):
@@ -746,60 +807,61 @@ def cross_validation_score(ml_model, scaler, thres = 0.5, random_st=42, cols = d
 
 # ## Multinomial NB
 
-# In[19]:
+# In[42]:
 
 
 y=target_labelled_data
-nb_cv_score = cross_validation_score(MultinomialNB(alpha=0.1), MinMaxScaler())
+nb_cv_score = cross_validation_score(MultinomialNB(alpha=10), MinMaxScaler())
 
 
 # ## Logistic Regression
 
-# In[39]:
+# In[43]:
 
 
 log_cv_score = cross_validation_score(LogisticRegression(solver='liblinear', 
-                                       C=0.0001, tol=10, multi_class='auto',
-                                       class_weight={0:1,1:10}), StandardScaler())
+                                                         C=0.1, tol=1e-05, 
+                                                         multi_class='auto',
+                                                         class_weight={0:1,1:1}),
+                                      StandardScaler())
 
 
 # ## RandomForestClassifier
 
-# In[40]:
+# In[44]:
 
 
-rf_cv_score = cross_validation_score(RandomForestClassifier(n_estimators=350,
-                                                            criterion='entropy', max_depth=None,
-                                                            class_weight={0:1,1:100},
-                                                            random_state=42),
+rf_cv_score = cross_validation_score(RandomForestClassifier(n_estimators=350, criterion='entropy',
+                                                            max_depth=None, random_state=42),
                                      StandardScaler())
 
 
 # ## LGBMClassifier
 
-# In[41]:
+# In[46]:
 
 
 lgm_cv_score = cross_validation_score(LGBMClassifier(n_estimators=250, 
-                                                     learning_rate=0.1, objective='binary',
-                                                     class_weight={0:1,1:10}),
+                                                     reg_alpha=0.01,
+                                                     learning_rate=0.1,
+                                                     objective='binary',
+                                                     class_weight={0:1,1:1}),
                                       StandardScaler())
 
 
 # ## XGBClassifier
 
-# In[42]:
+# In[47]:
 
 
-xgb_cv_score = cross_validation_score(XGBClassifier(n_estimators=350, 
-                                                    eval_metric="auc",
+xgb_cv_score = cross_validation_score(XGBClassifier(n_estimators=350, eval_metric="auc", 
                                                     objective='binary:logistic'),
                                       StandardScaler())
 
 
 # # Comparison of Model Fold wise
 
-# In[43]:
+# In[48]:
 
 
 compare_score = pd.DataFrame({'nb_cv_score':nb_cv_score,
@@ -818,18 +880,23 @@ plt.xlabel('Features')
 plt.ylabel('ROC AUC');
 
 
-# **The `LGBM Model` & `XGBoost Model` has the best performance across 5-fold. Therefore, we will work on improving them and select the one that generalizes best on unseen data**
+# **The `LGBM Model` has the best performance across 5-fold. Therefore, we will work on improving it.**
 
-# In[44]:
+# In[49]:
 
 
-xgb_model = XGBClassifier(n_estimators=350, eval_metric="auc", objective='binary:logistic')
-xgb_model.fit(X_train.values, y_train)
+lgb_model = make_pipeline(StandardScaler(), LGBMClassifier(n_estimators=250, 
+                                                           reg_alpha=0.01,
+                                                           learning_rate=0.1,
+                                                           objective='binary',
+                                                           class_weight={0:1,1:1}))
+
+lgb_model.fit(X_train, y_train)
 
 step_factor = 0.02
 threshold_value = 0.1
 roc_score = 0
-proba = xgb_model.predict_proba(X_test.values)
+proba = lgb_model.predict_proba(X_test)
 
 # Continue to check for optimal value when threshold is
 # less than 0.8
@@ -845,314 +912,475 @@ while threshold_value <= 0.8:
 print(f'\n---Optimum Threshold: {threshold_score}->ROC: {roc_score}')
 
 
-# In[52]:
-
-
-cross_validation_score(XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                    objective='binary:logistic'),
-                       StandardScaler(), thres=0.1)
-
-
-# In[45]:
-
-
-lgb_model = LGBMClassifier(n_estimators=250, 
-                         learning_rate=0.1, objective='binary',
-                         class_weight={0:1,1:10})
-
-lgb_model.fit(X_train.values, y_train)
-
-step_factor = 0.02
-threshold_value = 0.1
-roc_score = 0
-proba = lgb_model.predict_proba(X_test.values)
-
-while threshold_value <= 0.8:
-    temp_thresh = threshold_value
-    predicted = (proba[:,1] >= temp_thresh).astype('int')
-    print(f"Threshold: {temp_thresh}->{roc_auc_score(y_test, predicted)}")
-    #store the threshold for best classification
-    if roc_score < roc_auc_score(y_test, predicted):
-        roc_score = roc_auc_score(y_test, predicted)
-        threshold_score = threshold_value
-    threshold_value = threshold_value + step_factor
-print(f'\n---Optimum Threshold: {threshold_score}->ROC: {roc_score}')
-
-
-# In[20]:
+# In[50]:
 
 
 cross_validation_score(LGBMClassifier(n_estimators=250, 
-                                      learning_rate=0.1, objective='binary',
-                                      class_weight={0:1,1:10}),
-                       StandardScaler(), thres=0.32)
+                                      reg_alpha=0.01,
+                                      learning_rate=0.1,
+                                      objective='binary',
+                                      class_weight={0:1,1:1}),
+                       StandardScaler(), thres=0.36)
 
 
-# There is no improvement in the recall score
+# There is no improvement in the recall score. There was no improvement in the recall till after we gathered more data which improved the roc across all model.
 # 
 # **Ways to improve this model**
 # 1. Add more training data
 # 2. Try Over/Undersampling techniques like SMOTE
 
+# **My approach to Semi-Supervised Learning**
+# 
+# 1. Select the best model after Supervised learning which is the LGBMClassifer
+# 2. Try to improve the model with different SMOTE techniques
+# 3. Select the SMOTE with low '%' of Misclassification
+# 4. Train model with SMOTE training data if the '%' of Misclassification is lower than the original training data
+# 5. Perform Pseudo Labelling on with the best model
+# 6. Select a better confidence/probability value via the graph with the new training data.
+# 7. Training the model with the new training data based on the confidence.
+# 8. Do step 2,3 and 4.
+# 9. Store model for deployment.
+
 # # Addressing Imbalanced Class with SMOTE
 
-# In[21]:
+# In[18]:
 
 
-print(data_cleaned.shape)
-print(target_labelled_data.shape)
+print(X_train.shape)
+print(y_train.shape)
+print()
+print(Counter(y_train))
 
 
-# In[22]:
+# In[18]:
 
 
-print(target_labelled_data.value_counts())
-print(target_labelled_data.value_counts(normalize=True)*100)
+X_train_ada, y_train_ada = ADASYN(random_state = 154).fit_resample(X_train, y_train)
+print(X_train_ada.shape)
+print(y_train_ada.shape)
+print(Counter(y_train_ada))
 
 
-# In[23]:
-
-
-smote = SMOTE(sampling_strategy='minority')
-x_sm, y_sm = smote.fit_resample(data_cleaned, target_labelled_data)
-print(y_sm.value_counts())
-print(y_sm.value_counts(normalize=True)*100)
-
-
-# In[24]:
-
-
-X_train_sm, X_test_sm, y_train_sm, y_test_sm = train_test_split(x_sm, y_sm, stratify=y_sm, 
-                                                                random_state= 42, test_size= 0.2)
-
-
-# In[25]:
-
-
-pred, y_pred = train(XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                    objective='binary:logistic'),
-                     StandardScaler(),
-                     X_train_sm, y_train_sm, X_test_sm)
-
-auc = roc_auc_score(y_test_sm, pred)
-print(f"ROC AUC XGBoost Classifier Score: {auc:.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test_sm)*100)
-cm = confusion_matrix(y_test_sm, y_pred)
-confusion_matrix_plot(cm)
-roc_auc_curve(y_test_sm, pred)
-plt.show()
-
-# compare the actual class and predicted class
-out = pd.DataFrame(y_test_sm[0:30])
-out['Predicted_class'] = y_pred[0:30]
-out
-
-
-# In[26]:
+# In[19]:
 
 
 pred, y_pred = train(LGBMClassifier(n_estimators=250, 
-                                    learning_rate=0.1, objective='binary',
-                                    class_weight={0:1,1:10}),
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
                      StandardScaler(),
-                     X_train_sm, y_train_sm, X_test_sm)
+                     X_train_ada, y_train_ada, X_test)
 
-auc = roc_auc_score(y_test_sm, pred)
-print(f"ROC AUC LGBMClassifier Score: {auc:.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test_sm)*100)
-cm = confusion_matrix(y_test_sm, y_pred)
-confusion_matrix_plot(cm)
-roc_auc_curve(y_test_sm, pred)
-plt.show()
-
-out = pd.DataFrame(y_test_sm[0:30])
-out['Predicted_class'] = y_pred[0:30]
-out
-
-
-# **We will use the XGBoost Classifier because of it's low '%' of Misclassified labels**
-
-# In[29]:
-
-
-xgb_pipeline = make_pipeline(StandardScaler(),
-                             XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                           objective='binary:logistic'))
-
-xgb_pipeline.fit(X_train_sm.values, y_train_sm)
-pred = xgb_pipeline.predict_proba(X_test_sm.values)[:, 1]
-y_pred = xgb_pipeline.predict(X_test_sm.values)
-auc = roc_auc_score(y_test_sm, pred)
-print(f"ROC AUC XGBoost Classifier Score: {auc:.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test_sm)*100)
-cm = confusion_matrix(y_test_sm, y_pred)
-confusion_matrix_plot(cm)
-roc_auc_curve(y_test_sm, pred)
-plt.show()
-
-# compare the actual class and predicted class
-out = pd.DataFrame(y_test_sm[0:30])
-out['Predicted_class'] = y_pred[0:30]
-out
-
-
-# # Pseudo-Labelling based on Confidence
-
-# In[30]:
-
-
-print("Predicting labels for unlabelled data"+".."*2)
-preds_probs = xgb_pipeline.predict_proba(unlabelled_cleaned.values)
-preds = xgb_pipeline.predict(unlabelled_cleaned.values)
-
-prob_0 = preds_probs[:,0]
-prob_1 = preds_probs[:,1]
-# Store the predictions and probabilities in a dataframe
-pseudo_df = pd.DataFrame([])
-pseudo_df['pseudo_prediction'] = preds
-pseudo_df['prob_0'] = prob_0
-pseudo_df['prob_1'] = prob_1
-pseudo_df.index = unlabelled_cleaned.index
-pseudo_df['max'] = pseudo_df[['prob_0','prob_1']].max(axis=1)
-
-pseudo_df.head()
-
-
-# ## Plotting the Confidence
-
-# The below graph gives the distribution of confidence as expressed by the probability of the class which is most probable.
-
-# In[31]:
-
-
-sns.histplot(data = pseudo_df, x = 'max', bins=10)
-plt.show()
-
-
-# We will consider probability of 0.8 because of has high probability count which means the predicted labels is near accurate.
-
-# In[32]:
-
-
-conf_ind=pseudo_df["max"]>0.8
-X_new = np.append(X_train, unlabelled_cleaned.loc[conf_ind,:], axis=0)
-y_new = np.append(y_train, pseudo_df.loc[conf_ind, ['pseudo_prediction']])
-X_new = pd.DataFrame(X_new, columns = X_train.columns)
-y_new = pd.Series(y_new, name = 'label')
-
-print(f"Old Train Data shape: {X_train.shape} \nOld Train label shape: {y_train.shape}\n \nNew Train Data shape: {X_new.shape} \nNew Train label shape: {y_new.shape}\n")
-
-print(X_new.isnull().sum())
-print(y_new.isnull().sum())
-
-
-# In[35]:
-
-
-xgb_pipeline = make_pipeline(StandardScaler(),
-                             XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                           objective='binary:logistic'))
-
-xgb_pipeline.fit(X_new.values, y_new)
-pred = xgb_pipeline.predict_proba(X_test.values)[:, 1]
-y_pred = xgb_pipeline.predict(X_test.values)
 auc = roc_auc_score(y_test, pred)
-print('Performance after Semi-Supervised Learning')
-print(f"ROC AUC XGBoost Classifier Score: {auc:.4f}")
+print(f"ROC AUC LGBMClassifier Score with ADASYN: {auc:.4f}")
 print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
 cm = confusion_matrix(y_test, y_pred)
 confusion_matrix_plot(cm)
 roc_auc_curve(y_test, pred)
 plt.show()
 
-# compare the actual class and predicted class
-out = pd.DataFrame(y_test_sm[0:30])
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
 out['Predicted_class'] = y_pred[0:30]
 out
 
 
-# # Apply SMOTE
+# In[20]:
+
+
+X_train_bls, y_train_bls = BorderlineSMOTE(random_state = 154).fit_resample(X_train, y_train)
+print(X_train_bls.shape)
+print(y_train_bls.shape)
+print(Counter(y_train_bls))
+
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
+                     StandardScaler(),
+                     X_train_bls, y_train_bls, X_test)
+
+auc = roc_auc_score(y_test, pred)
+print(f"ROC AUC LGBMClassifier Score with BorderlineSMOTE: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
+out['Predicted_class'] = y_pred[0:30]
+out
+
+
+# In[46]:
+
+
+smote_pipe = Pipeline([('over', SMOTE(random_state = 11, sampling_strategy=0.8)),
+                     ('under', RandomUnderSampler(sampling_strategy=0.9))]
+                   )
+
+X_train_sm, y_train_sm = smote_pipe.fit_resample(X_train, y_train)
+print(X_train_sm.shape)
+print(y_train_sm.shape)
+print()
+print(Counter(y_train_sm))
+
+
+# In[47]:
+
+
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
+                     StandardScaler(),
+                     X_train_sm, y_train_sm, X_test)
+
+auc = roc_auc_score(y_test, pred)
+print(f"ROC AUC LGBMClassifier Score with SMOTE: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
+out['Predicted_class'] = y_pred[0:30]
+out
+
+
+# **We will train the model for psuedo-model with the ADASYN data, because of the low '%' of Misclassified class though the roc score came down a bit. For imbalance problem accuracy/roc score is not essential as compared to the '%' of Misclassified class.**
+
+# # Semi-Supervised Learning
+
+# **Goal:** Is to develop a Pseudo-labeling approach to label tweets as hate or non-hate which is a Semi-Supervised Learning classification task.
+
+# In[20]:
+
+
+semi_sup_model = make_pipeline(StandardScaler(), LGBMClassifier(n_estimators=250, 
+                                                                reg_alpha=0.01,
+                                                                learning_rate=0.1,
+                                                                objective='binary',
+                                                                class_weight={0:1,1:1}))
+semi_sup_model.fit(X_train_ada, y_train_ada)
+pred = semi_sup_model.predict_proba(X_test)[:, 1]
+y_pred = semi_sup_model.predict(X_test)
+auc = roc_auc_score(y_test, pred)
+print(f"ROC AUC LGBClassifer Score before Semi-Supervised Learning: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+
+# In[21]:
+
+
+unlabelled_cleaned = unlabelled_cleaned.values
+probs = semi_sup_model.predict_proba(unlabelled_cleaned)
+preds = semi_sup_model.predict(unlabelled_cleaned)
+
+df_pseudo = pd.DataFrame(probs, columns = ['C1Prob', 'C2Prob']) 
+df_pseudo['lab']=preds
+df_pseudo['max']=df_pseudo[["C1Prob", "C2Prob"]].max(axis=1)
+
+
+# In[22]:
+
+
+# Ensure the datatype are all in numpy
+print(type(X_train), type(y_train), type(X_test), type(y_test), type(unlabelled_cleaned))
+
+
+# In[23]:
+
+
+print(f"Unlabelled length -> {unlabelled_cleaned.shape[0]}")
+print(f"Pseudo length -> {df_pseudo.shape[0]}")
+df_pseudo.head()
+
+
+# ## Plotting the Confidence
+
+# The below graph gives the distribution of confidence as expressed by the probability of the class which is most probable.
+
+# In[24]:
+
+
+sns.histplot(data = df_pseudo, x = 'max', bins=10)
+plt.show()
+
+
+# In[25]:
+
+
+def check_score(model, scaler, X_train, y_train, X_test, y_test):
+    
+    """Function to confirm the confidence that best fit the data
+    """
+    print(f"Old Train Data shape: {X_train.shape[0]} \nOld Train label shape: {y_train.shape[0]}\n")
+    nc=np.arange(.5,1,.01)
+    print(len(nc))
+    auc_scores=np.empty(50)
+    i=0
+    for k in np.nditer(nc):
+        conf_ind=df_pseudo["max"]>k
+        X_new = np.append(X_train, unlabelled_cleaned[conf_ind,:],axis=0)
+        y_new = np.append(y_train, df_pseudo.loc[conf_ind, ['lab']])
+        test_model = make_pipeline(scaler, model)
+        test_model.fit(X_new, y_new)
+        pred = test_model.predict_proba(X_test)[:, 1]
+        y_pred = test_model.predict(X_test)
+        print(f"Iteration-> {i}")
+        print(f"New Train Data shape: {X_new.shape[0]} \nNew Train label shape: {y_new.shape[0]}\n")
+        # print(f"New Train instances remaining-> {len(X_new)}")
+        print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+        auc_scores[i] = roc_auc_score(y_test, pred)
+        print(f"{k}->{roc_auc_score(y_test, pred)}")
+        print()
+        i += 1
+    return auc_scores, nc
+
+def conf_and_roc_plot(auc, nc):
+    compare=pd.Series(auc, index=nc)
+    compare.plot()
+    plt.title('Confidence vs ROC')
+    plt.xlabel('Confidence')
+    plt.ylabel('ROC Score')
+    plt.show()
+
+
+# In[26]:
+
+
+auc_scores, nc = check_score(LGBMClassifier(n_estimators=250, 
+                                            reg_alpha=0.01,
+                                            learning_rate=0.1,
+                                            objective='binary',
+                                            class_weight={0:1,1:1}), StandardScaler(),
+                             X_train, y_train, X_test, y_test)
+
+
+# In[27]:
+
+
+conf_and_roc_plot(auc_scores, nc)
+
+
+# We will consider probability/confidence at 0.97 begin to increase which is a good sign
+
+# In[28]:
+
+
+conf_ind=df_pseudo["max"]>0.94
+X_train_new = np.append(X_train, unlabelled_cleaned[conf_ind,:],axis=0)
+y_train_new = np.append(y_train, df_pseudo.loc[conf_ind, ['lab']])
+
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
+                     StandardScaler(),
+                     X_train_new, y_train_new, X_test)
+
+auc = roc_auc_score(y_test, pred)
+print(f"New Data ROC AUC LGBMClassifier Score after semi-supervised: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
+out['Predicted_class'] = y_pred[0:30]
+out
+
+
+# In[29]:
+
+
+print(len(X_train))
+print(len(y_train))
+
+
+# In[30]:
+
+
+print(len(X_train_new))
+print(len(y_train_new))
+
+
+# # Apply SMOTE to new data
 
 # In[36]:
 
 
-print(X_new.shape)
-print(y_new.shape)
+print(X_train_new.shape)
+print(y_train_new.shape)
+print(Counter(y_train_new))
 
 
-# In[37]:
+# In[35]:
 
 
-print(y_new.value_counts())
-print(y_new.value_counts(normalize=True)*100)
-
-smote = SMOTE(sampling_strategy='minority')
-x_sm, y_sm = smote.fit_resample(X_new, y_new)
-print()
-print('After applying SMOTE')
-print(y_sm.value_counts())
-print(y_sm.value_counts(normalize=True)*100)
+X_train_new_ada, y_train_new_ada = ADASYN(random_state = 43).fit_resample(X_train_new, y_train_new)
+print(X_train_new_ada.shape)
+print(y_train_new_ada.shape)
+print(Counter(y_train_new_ada))
 
 
-# In[38]:
+# In[36]:
 
 
-X_train_sm, X_test_sm, y_train_sm, y_test_sm = train_test_split(x_sm, y_sm, stratify=y_sm, 
-                                                                random_state= 42, test_size= 0.2)
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
 
-pred, y_pred = train(XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                    objective='binary:logistic'),
                      StandardScaler(),
-                     X_train_sm, y_train_sm, X_test_sm)
+                     X_train_new_ada, y_train_new_ada, X_test)
 
-auc = roc_auc_score(y_test_sm, pred)
-print(f"ROC AUC XGBoost Classifier Score: {auc:.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test_sm)*100)
-cm = confusion_matrix(y_test_sm, y_pred)
+auc = roc_auc_score(y_test, pred)
+print(f"New Data ROC AUC LGBMClassifier Score with ADASYN: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
 confusion_matrix_plot(cm)
-roc_auc_curve(y_test_sm, pred)
+roc_auc_curve(y_test, pred)
 plt.show()
 
-out = pd.DataFrame(y_test_sm[0:30])
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
 out['Predicted_class'] = y_pred[0:30]
 out
 
 
-# We can see a little improvement in the ROC AUC score and also a reduction in the percentage of Misclassified class. Therefore, we will store this as our final model.
-
-# In[39]:
+# In[51]:
 
 
-final_model = make_pipeline(StandardScaler(),
-                            XGBClassifier(n_estimators=350, eval_metric="auc", 
-                                           objective='binary:logistic'))
+X_train_new_bls, y_train_new_bls = BorderlineSMOTE(random_state = 43).fit_resample(X_train_new, y_train_new)
+print(X_train_new_bls.shape)
+print(y_train_new_bls.shape)
+print(Counter(y_train_new_bls))
 
-final_model.fit(X_train_sm.values, y_train_sm)
-pred = final_model.predict_proba(X_test_sm.values)[:, 1]
-y_pred = final_model.predict(X_test_sm.values)
-auc = roc_auc_score(y_test_sm, pred)
-print(f"ROC AUC XGBoost Classifier Score: {auc:.4f}")
-print("'%' of Misclassified class:", np.mean(y_pred != y_test_sm)*100)
-cm = confusion_matrix(y_test_sm, y_pred)
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
+                     StandardScaler(),
+                     X_train_new_bls, y_train_new_bls, X_test)
+
+auc = roc_auc_score(y_test, pred)
+print(f"New Data ROC AUC LGBMClassifier Score with BorderlineSMOTE: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
 confusion_matrix_plot(cm)
-roc_auc_curve(y_test_sm, pred)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
+out['Predicted_class'] = y_pred[0:30]
+out
+
+
+# In[31]:
+
+
+smote_pipe = Pipeline([('over', SMOTE(random_state = 11, sampling_strategy=0.8)),
+                     ('under', RandomUnderSampler(sampling_strategy=0.9))]
+                   )
+
+X_train_new_sm, y_train_new_sm = smote_pipe.fit_resample(X_train_new, y_train_new)
+print(X_train_new_sm.shape)
+print(y_train_new_sm.shape)
+print(Counter(y_train_new_sm))
+
+
+# In[32]:
+
+
+pred, y_pred = train(LGBMClassifier(n_estimators=250, 
+                                    reg_alpha=0.01,
+                                    learning_rate=0.1,
+                                    objective='binary',
+                                    class_weight={0:1,1:1}),
+                     StandardScaler(),
+                     X_train_new_sm, y_train_new_sm, X_test)
+
+auc = roc_auc_score(y_test, pred)
+print(f"New Data ROC AUC LGBMClassifier Score after semi-supervised: {auc:.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
+plt.show()
+
+out = pd.DataFrame(y_test[0:30])
+out = out.rename(columns={0:'Actual Label'})
+out['Predicted_class'] = y_pred[0:30]
+out
+
+
+# **We will consider the model with no SMOTE because it's low '%' of Misclassified class**
+
+# In[33]:
+
+
+final_model = make_pipeline(StandardScaler(), LGBMClassifier(n_estimators=250,
+                                                             reg_alpha=0.01,
+                                                             learning_rate=0.1,
+                                                             objective='binary',
+                                                             class_weight={0:1,1:1}))
+
+final_model.fit(X_train_new, y_train_new)
+pred = final_model.predict_proba(X_test)[:, 1]
+y_pred = final_model.predict(X_test)
+auc = roc_auc_score(y_test, pred)
+print(f"Final LGBMClassifer ROC AUC Score : {roc_auc_score(y_test, pred):.4f}")
+print("'%' of Misclassified class:", np.mean(y_pred != y_test)*100)
+cm = confusion_matrix(y_test, y_pred)
+confusion_matrix_plot(cm)
+roc_auc_curve(y_test, pred)
 plt.show()
 
 
 # # Serialize Tfidf Vectorizer & the Final Model pipeline
 
-# In[40]:
+# In[34]:
 
 
-# with open('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/vectorizerV3.bin', 'wb') as f:
-#     joblib.dump(tfVectorized, f)
+with open('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/vectorizers/vectorizerV4.bin', 'wb') as f:
+    joblib.dump(tfVectorizer, f)
     
-# with open('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/modelV3.bin', 'wb') as f:
-#     joblib.dump(final_model, f)
+with open('/home/daniel/Desktop/programming/pythondatascience/datascience/NLP/sentiment-hate-system/src/models/modelV4.bin', 'wb') as f:
+    joblib.dump(final_model, f)
 
 
 # In[ ]:
 
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
 
 
 
