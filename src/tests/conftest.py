@@ -79,3 +79,29 @@ def model_test_dummy_data():
     ]
     })
     return data
+
+@pytest.fixture
+def train_dummy_data():
+    data = pd.DataFrame({
+    "id":[0, 1, 2, 3, 4, 5, 6],
+    "date":[
+        "2022-07-15 15:47:23",
+        "2022-07-15 15:58:10",
+        "2022-07-15 20:18:10",
+        "2022-07-16 20:18:10",
+        "2022-07-16 15:47:23",
+        "2022-07-16 15:58:10",
+        "2022-07-16 20:18:10"
+        ],
+    "text":
+    ["Cause cause because YOU",
+    "suppo the #taiji fisherman! no bullying! no racism! #tweet4taiji #thecove #seashepherd",
+    "interview feat grandmaster flash - ze lovely message â«âªâ«â«âºâº #nurap #nudisco #music #paris   â«âªâ«  via @user",
+    "cause me @danieltovia1 and @user get to live together for a whole week!   #cantwaittocook ðð",
+    "  i can't believe how much i used to care what people thought of me now i'm just like ""lol fuck u, fuck you and  wtf fuck youâ¦",
+    "it could be worse. #embarrassed #unfounate #traumatized #bitches black lives should matter to other black people.",
+    "half way through the website now and #allgoingwell very  "
+    ]})
+    return data
+
+
