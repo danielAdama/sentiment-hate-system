@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from pipeline.modelinference import ModelInference
 
-mi = ModelInference('vectorizerV4.bin', 'modelV4.bin')
+mi = ModelInference('vectorizerV5.bin', 'modelV5.bin')
 
 def test_get_pos_tag():
     pos = mi.get_pos_tag("half way through the website now")
@@ -95,9 +95,8 @@ def test_merged_shape_is_1018(dummy_data):
     assert merge_shape == expect_shape
 
 def test_predicted_probability(dummy_data):
-    expect = [0.3297, 0.0173, 0.2104]
+    expect = [0.3865, 0.0289, 0.3439]
     actual = mi.predicted_probability(dummy_data)
-    print(actual)
     assert len(actual) == len(expect)
     assert pytest.approx(actual, 0.1) == expect
 
@@ -106,5 +105,4 @@ def test_predicted_category_of_dummy_data_result(model_test_dummy_data):
     print(mi.predicted_probability(model_test_dummy_data))
     actual = mi.predicted_output_category(model_test_dummy_data)[1]
     print(actual)
-    diff = np.array_equal(actual, expect)
-    assert diff is True
+    np.array_equal(actual, expect) is True
