@@ -1,5 +1,5 @@
 import time
-import numpy
+import numpy as np
 import pandas
 import mysql.connector
 from mysql.connector import Error
@@ -33,9 +33,9 @@ if __name__ == '__main__':
         ]
 
     while True:
-        time.sleep(10.0)
+        time.sleep(2.0)
         
-        # Make created_at your primary key, so as to prevent duplicates in the data
+        # Make id your primary key, so as to prevent duplicates in the data
         for hashtag in hashtags:
             tweets = client.search_recent_tweets(query=hashtag, tweet_fields=['context_annotations', 'created_at'],
             max_results=100)
