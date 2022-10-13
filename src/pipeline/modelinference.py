@@ -14,6 +14,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter('ignore', UserWarning)
 
 
+
 class ModelInference():
 
     """Model Inference class for making predictions on unseen dataset with the model.
