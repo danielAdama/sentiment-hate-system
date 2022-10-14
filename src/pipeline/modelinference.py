@@ -208,7 +208,7 @@ class ModelInference():
         data = data.drop(['cleaned_text'], axis=1)
         return data
 
-    def predicted_probability(self, data):
+    def predicted_probability(self, data, booster=True):
 
         """Function that outputs model probability.
         
@@ -222,8 +222,12 @@ class ModelInference():
 
         final_data = self.merge(data)
         if (final_data is not None):
-            prob = self.model.predict_proba(final_data.values)[:,1]
-            return prob
+            if not booster:
+                prob = self.model.predict_proba(final_data.values)[:,1]
+                return prob
+            else:
+                prob = self.model.predict(final_data.values)
+                return prob
 
     def predicted_output_category(self, data):
 
