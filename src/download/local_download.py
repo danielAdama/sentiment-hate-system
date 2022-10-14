@@ -9,7 +9,9 @@ def main(run_id):
     """Function to create and download artifacts from MLflow.
     
     The MLflow script for experiments is where this module is executed without issues.
-    example: root_dir/mlflow_experiment.py, run the module in mlflow_experiment.py"""
+    example: root_dir/mlflow_experiment.py, run the module in mlflow_experiment.py
+    
+    """
     mlflow.set_tracking_uri(config.TRACKING_URI)
     client = MlflowClient(config.TRACKING_URI)
     experiment_id = client.get_experiment_by_name(config.EXPERIMENT_NAME).experiment_id
