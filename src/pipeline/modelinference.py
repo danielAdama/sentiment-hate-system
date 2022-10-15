@@ -6,7 +6,10 @@ import contractions
 import joblib
 from nltk import word_tokenize, sent_tokenize
 from nltk.stem import WordNetLemmatizer
+from config import config
 from nltk import pos_tag
+import mlflow
+from mlflow.tracking import MlflowClient
 from string import punctuation
 import re
 import warnings
@@ -17,7 +20,7 @@ warnings.simplefilter('ignore', UserWarning)
 
 class ModelInference():
 
-    """Model Inference class for making predictions on unseen dataset with the model.
+    """Model Inference class for making predictions on unseen dataset with the model in production.
     
     Attributes:
         lemmatizer (WordNet) : Lemmatize using WordNet's built-in morphy function.
@@ -31,15 +34,16 @@ class ModelInference():
         stopwords_punctuation (set) : A variable with the compined stopwords and punctions.
     """
     
-    def __init__(self, vectorizer='vectorizer.bin', model='model.bin'):
-        
+    def __init__(self, experiment_id, vectorizer='vectorizerV7.bin', run_id="3bff3d4e681b4574872d26ecb645173a"):
+
         self.lemmatizer = WordNetLemmatizer()
-        self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/vectorizers/{vectorizer}"), "rb"))
-        # self.scaler = pickle.load(open(os.path.join(os.getcwd(),"src/scalers/{scaler}"), "rb"))
-        self.model = joblib.load(open(os.path.join(os.getcwd(),f"src/models/{model}"), "rb"))
+        self.model = mlflow.lightgbm.load_model(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/models"))
+        # self.vectorizer = joblib.load(open(os.path.join(os.path.realpath('../vectorizers'),f"tfVectorizer/{vectorizer}"), "rb"))
+        self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/tfVectorizer/{vectorizer}"), "rb"))
         self.stopwords = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_nltk_stopwords.json"), "r")))
         self.stopwords_json = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_json_stopwords.json"), "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
+
     
     def get_pos_tag(self, text):
         
@@ -208,6 +212,11 @@ class ModelInference():
         data = data.drop(['cleaned_text'], axis=1)
         return data
 
+    def binary_predict(self, probs):
+        """Method to convert LightGBM .predict output to binary (0, 1)"""
+        y_pred = (probs > 0.5).astype("int")
+        return y_pred
+
     def predicted_probability(self, data, booster=True):
 
         """Function that outputs model probability.
@@ -226,10 +235,10 @@ class ModelInference():
                 prob = self.model.predict_proba(final_data.values)[:,1]
                 return prob
             else:
-                prob = self.model.predict(final_data.values)
+                prob = self.model.predict(final_data.values, num_iteration=self.model.best_iteration)
                 return prob
 
-    def predicted_output_category(self, data):
+    def predicted_output_category(self, data, booster=True):
 
         """Function that ouputs model category (0 for Non-hate or 1 for hate).
         
@@ -243,6 +252,11 @@ class ModelInference():
 
         final_data = self.merge(data)
         if (final_data is not None):
-            # To ensure we make predictions even when a single user parse data
-            preds = self.model.predict(final_data.values).reshape(-1, 1)
-            return data, preds
+            if not booster:
+                # To ensure we make predictions even when a single user parse data
+                preds = self.model.predict(final_data.values).reshape(-1, 1)
+                return preds
+            else:
+                probs = self.predicted_probability(data, booster=True)
+                preds = self.binary_predict(probs)
+                return preds
