@@ -102,7 +102,5 @@ def test_predicted_probability(dummy_data):
 
 def test_predicted_category_of_dummy_data_result(model_test_dummy_data):
     expect = np.array([0, 1, 0, 0, 1, 1, 0]).reshape(-1, 1)
-    print(mi.predicted_probability(model_test_dummy_data))
     actual = mi.predicted_output_category(model_test_dummy_data)[1]
-    print(actual)
     np.array_equal(actual, expect) is True
