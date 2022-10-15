@@ -13,3 +13,5 @@ HOST ='localhost'
 DATABASE = 'twitterdb'
 USER = 'danieladama'
 PASSWORD = 'Danyadama'
+EXPERIMENT_NAME = "sentiment-hate-experiment"
+TRACKING_URI = 'http://127.0.0.1:5000'
