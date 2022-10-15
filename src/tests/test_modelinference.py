@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from pipeline.modelinference import ModelInference
 
-mi = ModelInference('vectorizerV5.bin', 'modelV5.bin')
+mi = ModelInference(experiment_id=2)
 
 def test_get_pos_tag():
     pos = mi.get_pos_tag("half way through the website now")
