@@ -3,7 +3,7 @@ import pandas as pd
 from nltk import sent_tokenize
 from pipeline.modelinference import ModelInference
 
-mi = ModelInference('vectorizerV4.bin', 'modelV4.bin')
+mi=ModelInference(experiment_id=2)
 
 @pytest.fixture
 def dummy_data():
