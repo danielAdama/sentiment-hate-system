@@ -95,7 +95,7 @@ def test_merged_shape_is_1018(dummy_data):
     assert merge_shape == expect_shape
 
 def test_predicted_probability(dummy_data):
-    expect = [0.3865, 0.0289, 0.3439]
+    expect = [0.3901, 0.1308, 0.4490]
     actual = mi.predicted_probability(dummy_data)
     assert len(actual) == len(expect)
     assert pytest.approx(actual, 0.1) == expect
