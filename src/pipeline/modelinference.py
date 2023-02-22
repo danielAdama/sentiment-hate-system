@@ -34,16 +34,15 @@ class ModelInference():
         stopwords_punctuation (set) : A variable with the compined stopwords and punctions.
     """
     
-    def __init__(self, experiment_id, vectorizer='vectorizerV7.bin', run_id="3bff3d4e681b4574872d26ecb645173a"):
+    def __init__(self, experiment_id=None, vectorizer='vectorizerV7.bin', run_id="3bff3d4e681b4574872d26ecb645173a"):
 
         self.lemmatizer = WordNetLemmatizer()
-        self.model = mlflow.lightgbm.load_model(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/models"))
-        # self.vectorizer = joblib.load(open(os.path.join(os.path.realpath('../vectorizers'),f"tfVectorizer/{vectorizer}"), "rb"))
-        self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/tfVectorizer/{vectorizer}"), "rb"))
         self.stopwords = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_nltk_stopwords.json"), "r")))
         self.stopwords_json = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_json_stopwords.json"), "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
-
+        if experiment_id is not None:
+            self.model = mlflow.lightgbm.load_model(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/models"))
+            self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/tfVectorizer/{vectorizer}"), "rb"))
     
     def get_pos_tag(self, text):
         
