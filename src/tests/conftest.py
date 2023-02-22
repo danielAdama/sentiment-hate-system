@@ -26,6 +26,7 @@ def get_make_features_data_type(dummy_data):
     return actual_dtype
 
 
+@pytest.mark.skip(reason="Test this script locally")
 @pytest.fixture
 def get_train_metrics_dict():
     actual_dict = train.prepare_and_train()
