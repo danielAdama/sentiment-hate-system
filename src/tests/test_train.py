@@ -11,7 +11,7 @@ from pipeline.modelinference import ModelInference
 from config import config
 
 
-
+@pytest.mark.skip(reason="Test this script locally")
 def test_train_pipeline(get_train_metrics_dict):
     expected_dict = {
         'semi_auc':0.98316,
