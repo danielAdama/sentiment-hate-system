@@ -1,6 +1,9 @@
 import pytest
 import pandas as pd
-from nltk import sent_tokenize
+import warnings
+warnings.simplefilter('ignore', FutureWarning)
+warnings.simplefilter('ignore', UserWarning)
+from train import train
 from pipeline.modelinference import ModelInference
 
 mi=ModelInference(experiment_id=2)
@@ -21,6 +24,12 @@ def dummy_data():
 def get_make_features_data_type(dummy_data):
     actual_dtype = mi.make_features(dummy_data).dtypes.to_dict()
     return actual_dtype
+
+
+@pytest.fixture
+def get_train_metrics_dict():
+    actual_dict = train.prepare_and_train()
+    return actual_dict
 
 @pytest.fixture
 def get_make_features_columns():
@@ -104,4 +113,19 @@ def train_dummy_data():
     ]})
     return data
 
+@pytest.fixture
+def expect_df():
+    df = pd.DataFrame([])
+    df['id'] = [0, 1, 2]
+    df['text'] = [
+        "Cause cause because YOU",
+        "cause me @danieltovia1 and @user get to live together for a whole week!   #cantwaittocook ðð",
+        "half way through the website now and #allgoingwell very  "
+    ]
+    df['mention_count'] = [0, 2, 0]
+    df['char_count'] = [23, 80, 57]
+    df['word_count'] = [4, 13, 9]
+    df['uniq_word_count'] = [4, 13, 9]
+    df['htag_count'] = [0, 1, 1]
 
+    return df
