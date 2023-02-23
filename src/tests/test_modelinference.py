@@ -1,3 +1,7 @@
+"""
+test_modelinference.py
+"""
+
 import pandas as pd
 import pytest
 import numpy as np
@@ -47,42 +51,43 @@ def test_make_features_integer(dummy_data, expect_df):
     expect_df_int = expect_df[['mention_count', 'char_count', 'word_count', 'uniq_word_count', 'htag_count', 
     'title_word_count', 'uppercase_count', 'stopword_count', 'sent_count', 'adj_count', 'adv_count',
     'noun_count', 'verb_count', 'pron_count']]
-    
+
     feats_df = mi.make_features(dummy_data)
     actual_df_int = feats_df[['mention_count', 'char_count', 'word_count', 'uniq_word_count', 'htag_count', 
     'title_word_count', 'uppercase_count', 'stopword_count', 'sent_count', 'adj_count', 'adv_count',
     'noun_count', 'verb_count', 'pron_count']]
-    actual_df_int.equals(expect_df_int)
+    pd.testing.assert_frame_equal(expect_df_int, actual_df_int) is None
 
-def test_make_features_avg_word_len_float(dummy_data, expect_df):
-    expect_df_float = expect_df['avg_word_len']
+def test_make_features_avg_word_len_float(expect_df, dummy_data):
+    expect_df_float = expect_df.avg_word_len
     feats_df = mi.make_features(dummy_data)
-    actual_df_float = feats_df['avg_word_len']
-    assert pytest.approx(actual_df_float, 0.1) == expect_df_float
+    actual_df_float = feats_df.avg_word_len
+    assert pd.testing.assert_series_equal(expect_df_float, actual_df_float.round(1)) is None
 
 def test_make_features_avg_sent_len_float(dummy_data, expect_df):
     expect_df_float = expect_df['avg_sent_len']
     feats_df = mi.make_features(dummy_data)
     actual_df_float = feats_df['avg_sent_len']
-    assert pytest.approx(actual_df_float, 0.1) == expect_df_float
+    assert pd.testing.assert_series_equal(expect_df_float, actual_df_float.round(1)) is None
 
 def test_make_features_uniq_vs_words_float(dummy_data, expect_df):
     expect_df_float = expect_df['uniq_vs_words']
     feats_df = mi.make_features(dummy_data)
     actual_df_float = feats_df['uniq_vs_words']
-    assert pytest.approx(actual_df_float, 0.1) == expect_df_float
+    assert pd.testing.assert_series_equal(expect_df_float, actual_df_float.round(1)) is None
 
 def test_make_features_stopwords_vs_words_float(dummy_data, expect_df):
     expect_df_float = expect_df['stopwords_vs_words']
     feats_df = mi.make_features(dummy_data)
     actual_df_float = feats_df['stopwords_vs_words']
-    assert pytest.approx(actual_df_float, 0.1) == expect_df_float
+    print(expect_df_float, actual_df_float.round(1))
+    assert pd.testing.assert_series_equal(expect_df_float, actual_df_float.round(1)) is None
 
 def test_make_features_string(dummy_data, expect_df):
     expect_df_str = expect_df['cleaned_text']
     feats_df = mi.make_features(dummy_data)
     actual_df_str = feats_df['cleaned_text']
-    actual_df_str.equals(expect_df_str)
+    assert actual_df_str.equals(expect_df_str) is True
 
 def test_transform_process_shape_is_1000(dummy_data):
     expect_shape = 1000

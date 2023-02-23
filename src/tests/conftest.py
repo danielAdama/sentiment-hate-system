@@ -1,6 +1,13 @@
+"""
+conftest.py
+"""
+
 import pytest
 import pandas as pd
-from nltk import sent_tokenize
+import warnings
+warnings.simplefilter('ignore', FutureWarning)
+warnings.simplefilter('ignore', UserWarning)
+from train import train
 from pipeline.modelinference import ModelInference
 
 mi=ModelInference(experiment_id=2)
@@ -22,6 +29,13 @@ def get_make_features_data_type(dummy_data):
     actual_dtype = mi.make_features(dummy_data).dtypes.to_dict()
     return actual_dtype
 
+
+@pytest.mark.skip(reason="Test this script locally")
+@pytest.fixture
+def get_train_metrics_dict():
+    actual_dict = train.prepare_and_train()
+    return actual_dict
+
 @pytest.fixture
 def get_make_features_columns():
     data = pd.DataFrame({
@@ -35,34 +49,32 @@ def get_make_features_columns():
 
 @pytest.fixture
 def expect_df():
-    df = pd.DataFrame([])
-    df['id'] = [0, 1, 2]
-    df['text'] = [
+    return pd.DataFrame({
+        'id': [0, 1, 2],
+        'text': [
         "Cause cause because YOU",
         "cause me @danieltovia1 and @user get to live together for a whole week!   #cantwaittocook ðð",
-        "half way through the website now and #allgoingwell very  "
-    ]
-    df['mention_count'] = [0, 2, 0]
-    df['char_count'] = [23, 80, 57]
-    df['word_count'] = [4, 13, 9]
-    df['uniq_word_count'] = [4, 13, 9]
-    df['htag_count'] = [0, 1, 1]
-    df['stopword_count'] = [1, 5, 5]
-    df['sent_count'] = [1, 2, 1]
-    df['avg_word_len'] = [4.6, 5.6, 5.7]
-    df['avg_sent_len'] = [2.0, 4.7, 4.5]
-    df['uniq_vs_words'] = [1.0, 1.0, 1.0]
-    df['stopwords_vs_words'] = [0.25, 0.35, 0.56]
-    df['title_word_count'] = [1, 0, 0]
-    df['uppercase_count'] = [1, 0, 0]
-    df['noun_count'] = [0, 3, 3]
-    df['verb_count'] = [0, 2, 0]
-    df['adj_count'] = [0, 1, 0]
-    df['adv_count'] = [1, 1, 3]
-    df['pron_count'] = [1, 1, 0]
-    df['cleaned_text'] = ["", "live week   canotwaittocook ", "half website  allgoingwell"]
-
-    return df
+        "half way through the website now and #allgoingwell very  "],
+        'mention_count': [0, 2, 0],
+        'char_count': [23, 80, 57],
+        'word_count': [4, 13, 9],
+        'uniq_word_count': [4, 13, 9],
+        'htag_count': [0, 1, 1],
+        'stopword_count': [1, 5, 5],
+        'sent_count': [1, 2, 1],
+        'avg_word_len': [4.6, 5.7, 5.7],
+        'avg_sent_len': [2.0, 4.3, 4.5],
+        'uniq_vs_words': [1.0, 1.0, 1.0],
+        'stopwords_vs_words': [0.2, 0.4, 0.6],
+        'title_word_count': [1, 0, 0],
+        'uppercase_count': [1, 0, 0],
+        'noun_count': [0, 3, 3],
+        'verb_count': [0, 2, 0],
+        'adj_count': [0, 1, 0],
+        'adv_count': [1, 1, 3],
+        'pron_count': [1, 1, 0],
+        'cleaned_text': ["", "live week   canotwaittocook ", "half website  allgoingwell"]
+    })
 
 @pytest.fixture
 def model_test_dummy_data():
@@ -103,5 +115,3 @@ def train_dummy_data():
     "half way through the website now and #allgoingwell very  "
     ]})
     return data
-
-
