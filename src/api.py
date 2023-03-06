@@ -10,7 +10,7 @@ from quart_jwt_extended import (
     JWTManager,
     jwt_required,
     create_access_token,
-    get_jwt_identity,
+    get_jwt_identity
 )
 from datetime import datetime
 from config import config
@@ -28,7 +28,7 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(level=logging.DEBUG)
 logger.addHandler(consoleHandler)
 
-app.config['modelInference'] = ModelInference(experiment_id=2)
+app.config['modelInference'] = ModelInference(experiment_id=2, run_id="3bff3d4e681b4574872d26ecb645173a")
 app.config['SECRET_KEY'] = config.keys['SECRET_KEY']
 app.config['USERNAME'] = config.keys["USERNAME"]
 app.config['PASSWORD'] = config.keys["PASSWORD"]
@@ -102,12 +102,12 @@ async def predict():
                 }), config.HTTP_400_BAD_REQUEST
     
         data = pd.DataFrame(query, index=[0])
-        output = {}
+        payload = {}
         if (data.text is not None):
-            output['prediction'] = []
+            payload['prediction'] = []
             detection = {}
             try:
-                pred = app.config['modelInference'].predicted_output_category(data)
+                pred, model_version = app.config['modelInference'].predicted_output_category(data)
                 prob = app.config['modelInference'].predicted_probability(data)
                 if pred == 0:
                     label = 'noHate'
@@ -116,9 +116,11 @@ async def predict():
                 
                 detection['label'] = label
                 detection['confidence'] = prob
-                output['prediction'].append(detection)
+                detection['model_version'] = model_version
+                payload['prediction'].append(detection)
+
             except Exception as ex:
-                logger.debug(f"API PREDICT > id found - {ex}")
+                logger.debug(f"API PREDICT > {ex}")
                 return jsonify({
                     "BaseResponse":{
                         "Status":False,
@@ -134,9 +136,9 @@ async def predict():
                 "User": get_jwt_identity()
             },
             "query":query.get('text'),
-            "results": encoders.encode_to_json(output, as_py=True)
+            "results": encoders.encode_to_json(payload, as_py=True)
         }), config.HTTP_200_OK
-        
+
     except Exception as ex:
             logger.debug(f"API PREDICT > APPLICATION ERROR while predicting text - {ex}")
             return jsonify({
