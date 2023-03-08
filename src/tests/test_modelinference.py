@@ -80,7 +80,6 @@ def test_make_features_stopwords_vs_words_float(dummy_data, expect_df):
     expect_df_float = expect_df['stopwords_vs_words']
     feats_df = mi.make_features(dummy_data)
     actual_df_float = feats_df['stopwords_vs_words']
-    print(expect_df_float, actual_df_float.round(1))
     assert pd.testing.assert_series_equal(expect_df_float, actual_df_float.round(1)) is None
 
 def test_make_features_string(dummy_data, expect_df):

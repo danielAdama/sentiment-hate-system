@@ -40,10 +40,12 @@ class ModelInference():
         self.stopwords = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_nltk_stopwords.json"), "r")))
         self.stopwords_json = set(json.load(open(os.path.join(os.getcwd(),"src/stopWords/custome_json_stopwords.json"), "r")))
         self.stopwords_punctuation = set.union(self.stopwords, self.stopwords_json, punctuation)
+        self.run_id = run_id
         if experiment_id is not None:
-            self.model = mlflow.lightgbm.load_model(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/models"))
-            self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{run_id}/tfVectorizer/{vectorizer}"), "rb"))
-    
+            self.model = mlflow.lightgbm.load_model(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{self.run_id}/models"))
+            self.vectorizer = joblib.load(open(os.path.join(os.getcwd(),f"src/artifacts/{experiment_id}/{self.run_id}/tfVectorizer/{vectorizer}"), "rb"))
+            
+        
     def get_pos_tag(self, text):
         
         """Function to group words according to their Parts of Speech
@@ -258,4 +260,4 @@ class ModelInference():
             else:
                 probs = self.predicted_probability(data, booster=True)
                 preds = self.binary_predict(probs)
-                return preds
+                return preds, self.run_id
