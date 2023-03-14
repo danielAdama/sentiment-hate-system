@@ -3,6 +3,7 @@ src/train/initial_notebook_hate_speech_datalabeller_pipeline.ipynb
 src/train/hate_speech_model_pipeline.ipynb
 src/train/new_semi_supervised_learning_data_labeling.ipynb
 src/train/train.ipynb
+.env
 
 datalabeller.py
 requirements.txt:Zone.Identifier
